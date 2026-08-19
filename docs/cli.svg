@@ -1,19 +1,53 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="920" height="510" viewBox="0 0 920 510" role="img" aria-labelledby="title description">
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="840" viewBox="0 0 1120 840" role="img" aria-labelledby="title description">
   <title id="title">Token-2022 Preflight CLI report</title>
-  <desc id="description">A terminal window showing an action-required Token-2022 transfer report with fee, memo, hook, and permanent delegate findings.</desc>
-  <rect width="920" height="510" rx="16" fill="#020617"/>
-  <rect x="1" y="1" width="918" height="508" rx="15" fill="none" stroke="#334155" stroke-width="2"/>
-  <circle cx="28" cy="26" r="6" fill="#f87171"/><circle cx="50" cy="26" r="6" fill="#fbbf24"/><circle cx="72" cy="26" r="6" fill="#34d399"/>
-  <g font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="17" fill="#cbd5e1">
-    <text x="28" y="68" fill="#67e8f9">$ token22 inspect 9x...abc --amount 100 --source ... --destination ...</text>
-    <text x="28" y="112" fill="#f8fafc" font-weight="700">Token-2022 Preflight</text>
-    <text x="28" y="150">Mint       9x...abc</text><text x="28" y="178">Cluster    mainnet-beta</text><text x="28" y="206">Program    Token-2022</text>
-    <text x="28" y="234">Status     <tspan fill="#fbbf24" font-weight="700">ACTION REQUIRED</tspan></text>
-    <text x="28" y="278" fill="#f8fafc" font-weight="700">Transfer</text>
-    <text x="48" y="308">Send       100000000</text><text x="48" y="336">Fee        500000</text><text x="48" y="364">Receive    99500000</text>
-    <text x="28" y="408" fill="#f8fafc" font-weight="700">Findings</text>
-    <text x="48" y="438"><tspan fill="#fbbf24">ACTION</tspan>  Destination requires a memo</text>
-    <text x="48" y="466"><tspan fill="#fbbf24">ACTION</tspan>  Transfer Hook requires additional accounts</text>
-    <text x="48" y="494"><tspan fill="#fde68a">WARNING</tspan> Permanent delegate can transfer or burn tokens</text>
+  <desc id="description">The actual Token-2022 Preflight report for mint CKfatsPMUf8SkiURsDXs7eK6GWb4Jsd6UDbs7twMCWxo, showing an action-required status, a transfer fee, the expected received amount, and the source balance limitation.</desc>
+
+  <rect width="1120" height="840" rx="14" fill="#0d1117"/>
+  <rect x="1" y="1" width="1118" height="838" rx="13" fill="none" stroke="#30363d" stroke-width="2"/>
+
+  <g font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace" font-size="18" fill="#c9d1d9">
+    <text x="44" y="54" fill="#f0f6fc" font-size="22" font-weight="700">Token-2022 Preflight</text>
+    <line x1="44" y1="78" x2="1076" y2="78" stroke="#30363d" stroke-width="2"/>
+
+    <text x="44" y="119" fill="#8b949e">Status</text>
+    <rect x="176" y="94" width="204" height="34" rx="3" fill="#3b2f14" stroke="#d29922"/>
+    <text x="190" y="118" fill="#f2cc60" font-weight="700">[ACTION REQUIRED]</text>
+
+    <text x="44" y="158" fill="#8b949e">Mint</text>
+    <text x="176" y="158" fill="#f0f6fc">CKfatsPMUf8SkiURsDXs7eK6GWb4Jsd6UDbs7twMCWxo</text>
+    <text x="44" y="193" fill="#8b949e">Cluster</text>
+    <text x="176" y="193">mainnet-beta</text>
+    <text x="44" y="228" fill="#8b949e">Program</text>
+    <text x="176" y="228">Token-2022</text>
+
+    <text x="44" y="283" fill="#f0f6fc" font-size="20" font-weight="700">Transfer</text>
+    <line x1="44" y1="297" x2="1076" y2="297" stroke="#21262d"/>
+    <text x="64" y="333" fill="#8b949e">Amount (UI)</text>
+    <text x="254" y="333" fill="#f0f6fc">100</text>
+    <text x="64" y="368" fill="#8b949e">Amount (raw)</text>
+    <text x="254" y="368" fill="#f0f6fc">10000000</text>
+    <text x="64" y="403" fill="#8b949e">Fee</text>
+    <text x="254" y="403" fill="#f2cc60">269000</text>
+    <text x="64" y="438" fill="#8b949e">Receive</text>
+    <text x="254" y="438" fill="#7ee787">9731000</text>
+
+    <text x="44" y="493" fill="#f0f6fc" font-size="20" font-weight="700">Findings</text>
+    <text x="164" y="493" fill="#8b949e">2</text>
+    <line x1="44" y1="507" x2="1076" y2="507" stroke="#21262d"/>
+
+    <rect x="64" y="530" width="204" height="34" rx="3" fill="#3b2f14" stroke="#d29922"/>
+    <text x="78" y="554" fill="#f2cc60" font-weight="700">[ACTION REQUIRED]</text>
+    <text x="288" y="554" fill="#f0f6fc" font-weight="700">Token charges a transfer fee</text>
+    <text x="84" y="590" fill="#8b949e">&#8594; Include the expected fee in transfer handling.</text>
+
+    <rect x="64" y="613" width="126" height="34" rx="3" fill="#172a46" stroke="#388bfd"/>
+    <text x="78" y="637" fill="#79c0ff" font-weight="700">[UNKNOWN]</text>
+    <text x="210" y="637" fill="#f0f6fc" font-weight="700">Source balance was not checked</text>
+    <text x="84" y="673" fill="#8b949e">&#8594; Provide both token account addresses for a transfer-aware check.</text>
+
+    <text x="44" y="728" fill="#f0f6fc" font-size="20" font-weight="700">Limitations</text>
+    <line x1="44" y1="742" x2="1076" y2="742" stroke="#21262d"/>
+    <text x="64" y="773" fill="#8b949e">- No transaction simulation is performed; supported checks are not a transfer guarantee.</text>
+    <text x="64" y="808" fill="#8b949e">- Source balance was not checked because no source token account was provided.</text>
   </g>
 </svg>
