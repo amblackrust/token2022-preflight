@@ -197,4 +197,30 @@ describe("transfer-aware rules", () => {
       "WARNING",
     ]);
   });
+
+  it("does not silently ignore an unsupported account extension", () => {
+    const report = analyzeNormalizedToken(
+      analysis({
+        sourceTokenAccount: {
+          address: SOURCE,
+          state: "initialized",
+          extensions: [{ kind: "ConfidentialTransferAccount" }],
+        },
+      }),
+    );
+
+    expect(report.overallStatus).toBe("UNKNOWN");
+    expect(report.findings[0]).toMatchObject({
+      id: "source-unsupported-ConfidentialTransferAccount",
+      status: "UNKNOWN",
+      evidence: [
+        {
+          account: SOURCE,
+          accountKind: "source",
+          field: "extensions.ConfidentialTransferAccount",
+          value: true,
+        },
+      ],
+    });
+  });
 });

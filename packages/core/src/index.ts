@@ -462,29 +462,27 @@ function buildAccountFindings(
     );
   }
   for (const extension of account.extensions) {
-    if (
-      role === "destination" &&
-      extension.kind === "MemoTransfer" &&
-      extension.requireIncomingTransferMemos
-    ) {
-      findings.push(
-        makeFinding(
-          "destination-memo-required",
-          "ACTION_REQUIRED",
-          "account",
-          "Destination requires a memo",
-          "A Memo instruction must immediately precede the transfer.",
-          ["Add a Memo instruction immediately before transfer."],
-          [
-            {
-              account: account.address,
-              accountKind: role,
-              field: "extensions.MemoTransfer.requireIncomingTransferMemos",
-              value: true,
-            },
-          ],
-        ),
-      );
+    if (extension.kind === "MemoTransfer") {
+      if (role === "destination" && extension.requireIncomingTransferMemos) {
+        findings.push(
+          makeFinding(
+            "destination-memo-required",
+            "ACTION_REQUIRED",
+            "account",
+            "Destination requires a memo",
+            "A Memo instruction must immediately precede the transfer.",
+            ["Add a Memo instruction immediately before transfer."],
+            [
+              {
+                account: account.address,
+                accountKind: role,
+                field: "extensions.MemoTransfer.requireIncomingTransferMemos",
+                value: true,
+              },
+            ],
+          ),
+        );
+      }
     } else if (
       extension.kind === "CpiGuard" ||
       extension.kind === "ImmutableOwner"
@@ -503,6 +501,25 @@ function buildAccountFindings(
               accountKind: role,
               field: `extensions.${extension.kind}`,
               value: extension.enabled ?? true,
+            },
+          ],
+        ),
+      );
+    } else {
+      findings.push(
+        makeFinding(
+          `${role}-unsupported-${extension.kind}`,
+          "UNKNOWN",
+          "account",
+          `Unsupported account extension: ${extension.kind}`,
+          "This version cannot determine every transfer implication of this account extension.",
+          ["Review the account extension before building the transfer."],
+          [
+            {
+              account: account.address,
+              accountKind: role,
+              field: `extensions.${extension.kind}`,
+              value: true,
             },
           ],
         ),

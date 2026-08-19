@@ -444,7 +444,7 @@ export function decodeTokenData(
           case "ImmutableOwner":
             return [{ kind: extension.__kind, enabled: true }];
           default:
-            return [];
+            return [{ kind: extension.__kind }];
         }
       },
     ),
