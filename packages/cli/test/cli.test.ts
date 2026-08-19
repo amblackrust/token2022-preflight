@@ -105,7 +105,9 @@ describe("runCli", () => {
     );
 
     expect(output.stdout.join("")).toContain("Token-2022 Preflight");
-    expect(output.stdout.join("")).toContain("Status     WARNING");
+    expect(output.stdout.join("")).toContain("[WARNING]");
+    expect(output.stdout.join("")).toContain("--json");
+    expect(output.stdout.join("")).toContain("--verbose");
   });
 
   it("returns exit code 1 and explains an invalid amount", async () => {

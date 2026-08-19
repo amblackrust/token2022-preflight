@@ -134,16 +134,14 @@ export function formatTerminalReport(
   color: boolean,
   verbose = false,
 ): string {
-  const paint = color
-    ? statusColor(report.overallStatus)
-    : (value: string) => value;
   const lines = [
-    "Token-2022 Preflight",
     "",
+    "Token-2022 Preflight",
+    "────────────────────────────────────────────────────────────────",
+    `Status     ${formatStatusBadge(report.overallStatus, color)}`,
     `Mint       ${report.mint.address}`,
     `Cluster    ${report.cluster}`,
     `Program    ${report.tokenProgram === "token-2022" ? "Token-2022" : report.tokenProgram}`,
-    `Status     ${paint(report.overallStatus.replace("_", " "))}`,
   ];
   if (report.transfer !== undefined) {
     lines.push(
@@ -157,13 +155,15 @@ export function formatTerminalReport(
     if (report.transfer.expectedReceivedRaw !== undefined)
       lines.push(`  Receive    ${report.transfer.expectedReceivedRaw}`);
   }
-  lines.push("", "Findings");
+  lines.push("", `Findings   ${report.findings.length}`);
   if (report.findings.length === 0)
-    lines.push("  READY   No blockers found by supported checks");
+    lines.push("  [READY] No blockers found by supported checks");
   for (const finding of report.findings) {
-    lines.push(`  ${finding.status.padEnd(8)} ${finding.title}`);
+    lines.push(
+      `  ${formatStatusBadge(finding.status, color)} ${finding.title}`,
+    );
     for (const action of finding.requiredActions) {
-      lines.push(`    Action: ${action}`);
+      lines.push(`    → ${action}`);
     }
     if (verbose) {
       lines.push(`    Summary: ${finding.summary}`);
@@ -184,8 +184,17 @@ export function formatTerminalReport(
     "Limitations",
     ...report.limitations.map((limitation) => `  - ${limitation}`),
     "",
+    "More output",
+    "  Full JSON     rerun with --json",
+    "  Diagnostics   rerun with --verbose",
+    "",
   );
   return `${lines.join("\n")}\n`;
+}
+
+function formatStatusBadge(status: FindingStatus, color: boolean): string {
+  const label = status.replace("_", " ");
+  return color ? pc.inverse(statusColor(status)(` ${label} `)) : `[${label}]`;
 }
 
 function formatDiagnosticValue(value: unknown): string {
