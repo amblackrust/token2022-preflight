@@ -38,7 +38,7 @@ export interface NormalizedMintExtension {
   typeId?: number;
   authority?: string | null;
   paused?: boolean;
-  state?: 'initialized' | 'frozen';
+  state?: 'uninitialized' | 'initialized' | 'frozen';
   delegate?: string;
   programAddress?: string;
   resolution?: HookResolution;
