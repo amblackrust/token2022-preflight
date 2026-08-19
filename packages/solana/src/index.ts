@@ -42,6 +42,8 @@ export type PreflightErrorCode =
   | "HOOK_ACCOUNTS_UNRESOLVED"
   | "UNEXPECTED_ERROR";
 
+const ZERO_ADDRESS = "11111111111111111111111111111111";
+
 export class PreflightError extends Error {
   public constructor(
     public readonly code: PreflightErrorCode,
@@ -526,8 +528,12 @@ function normalizeMintExtension(extension: Extension): NormalizedMintExtension {
     case "TransferFeeConfig":
       return {
         kind: extension.__kind,
-        configAuthority: extension.transferFeeConfigAuthority,
-        withdrawAuthority: extension.withdrawWithheldAuthority,
+        configAuthority: nullableNonZeroAddress(
+          extension.transferFeeConfigAuthority,
+        ),
+        withdrawAuthority: nullableNonZeroAddress(
+          extension.withdrawWithheldAuthority,
+        ),
         older: {
           epoch: extension.olderTransferFee.epoch,
           basisPoints: extension.olderTransferFee.transferFeeBasisPoints,
@@ -560,6 +566,10 @@ function normalizeMintExtension(extension: Extension): NormalizedMintExtension {
     default:
       return { kind: extension.__kind };
   }
+}
+
+function nullableNonZeroAddress(value: Address): string | null {
+  return value === ZERO_ADDRESS ? null : value;
 }
 
 function accountState(

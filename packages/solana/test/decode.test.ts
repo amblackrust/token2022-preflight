@@ -125,4 +125,37 @@ describe("decodeMintData", () => {
       }),
     );
   });
+
+  it("normalizes zero-valued transfer fee authorities as revoked", () => {
+    const data = getMintEncoder().encode({
+      mintAuthority: none(),
+      supply: 0n,
+      decimals: 2,
+      isInitialized: true,
+      freezeAuthority: none(),
+      extensions: some([
+        extension("TransferFeeConfig", {
+          transferFeeConfigAuthority: MINT,
+          withdrawWithheldAuthority: MINT,
+          withheldAmount: 0n,
+          olderTransferFee: {
+            epoch: 0n,
+            maximumFee: 10n,
+            transferFeeBasisPoints: 25,
+          },
+          newerTransferFee: {
+            epoch: 1n,
+            maximumFee: 20n,
+            transferFeeBasisPoints: 50,
+          },
+        }),
+      ]),
+    });
+
+    expect(decodeMintData(MINT, data).extensions[0]).toMatchObject({
+      kind: "TransferFeeConfig",
+      configAuthority: null,
+      withdrawAuthority: null,
+    });
+  });
 });
