@@ -1,17 +1,42 @@
 {
   "name": "token2022-preflight",
   "version": "0.1.0",
+  "description": "Read-only Token-2022 transfer compatibility diagnostics for Solana",
+  "license": "MIT",
   "type": "module",
   "bin": {
     "token22": "dist/bin.js"
   },
   "files": [
-    "dist/bin.js"
+    "dist/bin.js",
+    "README.md",
+    "LICENSE"
   ],
   "scripts": {
     "build": "tsup --config tsup.config.ts",
+    "prepack": "npm run build --workspace @token2022-preflight/core && npm run build --workspace @token2022-preflight/solana && npm run build",
     "test": "vitest run",
     "typecheck": "tsc -b --pretty false"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/amblackrust/token2022-preflight.git",
+    "directory": "packages/cli"
+  },
+  "homepage": "https://github.com/amblackrust/token2022-preflight#readme",
+  "bugs": {
+    "url": "https://github.com/amblackrust/token2022-preflight/issues"
+  },
+  "keywords": [
+    "solana",
+    "token-2022",
+    "spl-token",
+    "cli",
+    "preflight",
+    "transfer"
+  ],
+  "publishConfig": {
+    "access": "public"
   },
   "dependencies": {
     "@solana/kit": "7.1.1",
