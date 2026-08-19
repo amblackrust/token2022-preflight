@@ -1,0 +1,7 @@
+.git-data/
+node_modules/
+dist/
+coverage/
+package-lock.json
+PROJECT_SPEC.md
+.agents/

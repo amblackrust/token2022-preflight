@@ -1,15 +1,18 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from "vitest";
 
-import { analyzeNormalizedToken, type NormalizedAnalysis } from '../src/index.js';
+import {
+  analyzeNormalizedToken,
+  type NormalizedAnalysis,
+} from "../src/index.js";
 
-const MINT = 'Mint111111111111111111111111111111111111111';
-const SOURCE = 'Source1111111111111111111111111111111111111';
-const DESTINATION = 'Dest111111111111111111111111111111111111111';
+const MINT = "Mint111111111111111111111111111111111111111";
+const SOURCE = "Source1111111111111111111111111111111111111";
+const DESTINATION = "Dest111111111111111111111111111111111111111";
 
 function analysis(overrides: Record<string, unknown> = {}): NormalizedAnalysis {
   return {
-    cluster: 'devnet',
-    tokenProgram: 'token-2022',
+    cluster: "devnet",
+    tokenProgram: "token-2022",
     mint: {
       address: MINT,
       decimals: 2,
@@ -22,100 +25,149 @@ function analysis(overrides: Record<string, unknown> = {}): NormalizedAnalysis {
   } as unknown as NormalizedAnalysis;
 }
 
-describe('transfer-aware rules', () => {
-  it('calculates the epoch-selected transfer fee with a maximum cap', () => {
-    const report = analyzeNormalizedToken(analysis({
-      amountUi: '1000',
-      currentEpoch: 42n,
-      mint: {
-        ...analysis().mint,
-        extensions: [{
-          kind: 'TransferFeeConfig',
-          older: { epoch: 0n, basisPoints: 100, maximumFeeRaw: 500n },
-          newer: { epoch: 40n, basisPoints: 250, maximumFeeRaw: 1_000n },
-          configAuthority: 'Config111111111111111111111111111111111111',
-          withdrawAuthority: null,
-        }],
-      },
-    }));
+describe("transfer-aware rules", () => {
+  it("calculates the epoch-selected transfer fee with a maximum cap", () => {
+    const report = analyzeNormalizedToken(
+      analysis({
+        amountUi: "1000",
+        currentEpoch: 42n,
+        mint: {
+          ...analysis().mint,
+          extensions: [
+            {
+              kind: "TransferFeeConfig",
+              older: { epoch: 0n, basisPoints: 100, maximumFeeRaw: 500n },
+              newer: { epoch: 40n, basisPoints: 250, maximumFeeRaw: 1_000n },
+              configAuthority: "Config111111111111111111111111111111111111",
+              withdrawAuthority: null,
+            },
+          ],
+        },
+      }),
+    );
 
-    expect(report.overallStatus).toBe('ACTION_REQUIRED');
+    expect(report.overallStatus).toBe("ACTION_REQUIRED");
     expect(report.transfer).toEqual({
-      amountRaw: '100000',
-      expectedFeeRaw: '1000',
-      expectedReceivedRaw: '99000',
+      amountRaw: "100000",
+      expectedFeeRaw: "1000",
+      expectedReceivedRaw: "99000",
     });
     expect(report.findings[0]).toMatchObject({
-      id: 'transfer-fee',
-      technicalDetails: { basisPoints: 250, maximumFeeRaw: '1000' },
+      id: "transfer-fee",
+      technicalDetails: { basisPoints: 250, maximumFeeRaw: "1000" },
     });
   });
 
-  it('blocks a paused mint and reports its authority', () => {
-    const report = analyzeNormalizedToken(analysis({
-      mint: {
-        ...analysis().mint,
-        extensions: [{ kind: 'PausableConfig', paused: true, authority: 'Pause1111111111111111111111111111111111111' }],
-      },
-    }));
+  it("blocks a paused mint and reports its authority", () => {
+    const report = analyzeNormalizedToken(
+      analysis({
+        mint: {
+          ...analysis().mint,
+          extensions: [
+            {
+              kind: "PausableConfig",
+              paused: true,
+              authority: "Pause1111111111111111111111111111111111111",
+            },
+          ],
+        },
+      }),
+    );
 
-    expect(report.overallStatus).toBe('BLOCKED');
-    expect(report.findings[0]).toMatchObject({ id: 'mint-paused', status: 'BLOCKED' });
+    expect(report.overallStatus).toBe("BLOCKED");
+    expect(report.findings[0]).toMatchObject({
+      id: "mint-paused",
+      status: "BLOCKED",
+    });
   });
 
-  it('warns for default-frozen state without claiming existing accounts are frozen', () => {
-    const report = analyzeNormalizedToken(analysis({
-      mint: {
-        ...analysis().mint,
-        extensions: [{ kind: 'DefaultAccountState', state: 'frozen' }],
-      },
-    }));
+  it("warns for default-frozen state without claiming existing accounts are frozen", () => {
+    const report = analyzeNormalizedToken(
+      analysis({
+        mint: {
+          ...analysis().mint,
+          extensions: [{ kind: "DefaultAccountState", state: "frozen" }],
+        },
+      }),
+    );
 
-    expect(report.overallStatus).toBe('WARNING');
-    expect(report.findings[0]).toMatchObject({ id: 'default-account-state-frozen', status: 'WARNING' });
+    expect(report.overallStatus).toBe("WARNING");
+    expect(report.findings[0]).toMatchObject({
+      id: "default-account-state-frozen",
+      status: "WARNING",
+    });
   });
 
-  it('blocks a frozen source and requires a memo for the destination', () => {
-    const report = analyzeNormalizedToken(analysis({
-      sourceTokenAccount: { address: SOURCE, state: 'frozen', extensions: [] },
-      destinationTokenAccount: {
-        address: DESTINATION,
-        state: 'initialized',
-        extensions: [{ kind: 'MemoTransfer', requireIncomingTransferMemos: true }],
-      },
-    }));
+  it("blocks a frozen source and requires a memo for the destination", () => {
+    const report = analyzeNormalizedToken(
+      analysis({
+        sourceTokenAccount: {
+          address: SOURCE,
+          state: "frozen",
+          extensions: [],
+        },
+        destinationTokenAccount: {
+          address: DESTINATION,
+          state: "initialized",
+          extensions: [
+            { kind: "MemoTransfer", requireIncomingTransferMemos: true },
+          ],
+        },
+      }),
+    );
 
-    expect(report.overallStatus).toBe('BLOCKED');
-    expect(report.findings.map(({ id }) => id)).toEqual(['source-frozen', 'destination-memo-required']);
+    expect(report.overallStatus).toBe("BLOCKED");
+    expect(report.findings.map(({ id }) => id)).toEqual([
+      "source-frozen",
+      "destination-memo-required",
+    ]);
   });
 
-  it('keeps a transfer-hook action while separately reporting unresolved accounts', () => {
-    const report = analyzeNormalizedToken(analysis({
-      mint: {
-        ...analysis().mint,
-        extensions: [{
-          kind: 'TransferHook',
-          programAddress: 'Hook111111111111111111111111111111111111111',
-          resolution: { status: 'unresolved', reason: 'meta account not found' },
-        }],
-      },
-    }));
+  it("keeps a transfer-hook action while separately reporting unresolved accounts", () => {
+    const report = analyzeNormalizedToken(
+      analysis({
+        mint: {
+          ...analysis().mint,
+          extensions: [
+            {
+              kind: "TransferHook",
+              programAddress: "Hook111111111111111111111111111111111111111",
+              resolution: {
+                status: "unresolved",
+                reason: "meta account not found",
+              },
+            },
+          ],
+        },
+      }),
+    );
 
-    expect(report.findings.map(({ id }) => id)).toEqual(['transfer-hook', 'transfer-hook-unresolved']);
+    expect(report.findings.map(({ id }) => id)).toEqual([
+      "transfer-hook",
+      "transfer-hook-unresolved",
+    ]);
   });
 
-  it('warns about a permanent delegate and marks confidential transfer unsupported', () => {
-    const report = analyzeNormalizedToken(analysis({
-      mint: {
-        ...analysis().mint,
-        extensions: [
-          { kind: 'PermanentDelegate', delegate: 'Delegate11111111111111111111111111111111111' },
-          { kind: 'ConfidentialTransferMint' },
-        ],
-      },
-    }));
+  it("warns about a permanent delegate and marks confidential transfer unsupported", () => {
+    const report = analyzeNormalizedToken(
+      analysis({
+        mint: {
+          ...analysis().mint,
+          extensions: [
+            {
+              kind: "PermanentDelegate",
+              delegate: "Delegate11111111111111111111111111111111111",
+            },
+            { kind: "ConfidentialTransferMint" },
+          ],
+        },
+      }),
+    );
 
-    expect(report.overallStatus).toBe('UNKNOWN');
-    expect(report.findings.map(({ status }) => status)).toEqual(['UNKNOWN', 'WARNING']);
+    expect(report.overallStatus).toBe("UNKNOWN");
+    expect(report.findings.map(({ status }) => status)).toEqual([
+      "UNKNOWN",
+      "WARNING",
+    ]);
   });
 });

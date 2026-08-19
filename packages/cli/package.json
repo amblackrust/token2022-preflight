@@ -2,9 +2,16 @@
   "name": "token2022-preflight",
   "version": "0.1.0",
   "type": "module",
-  "bin": { "token22": "dist/bin.js" },
-  "exports": { ".": "./dist/index.js" },
-  "files": ["dist", "README.md"],
+  "bin": {
+    "token22": "dist/bin.js"
+  },
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "scripts": {
     "build": "tsup --config tsup.config.ts",
     "test": "vitest run",
@@ -16,5 +23,7 @@
     "commander": "15.0.0",
     "picocolors": "1.1.1"
   },
-  "engines": { "node": ">=24.0.0" }
+  "engines": {
+    "node": ">=24.0.0"
+  }
 }
