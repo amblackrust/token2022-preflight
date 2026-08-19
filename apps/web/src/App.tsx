@@ -52,35 +52,22 @@ function PreflightPage(): React.JSX.Element {
   }
 
   return (
-    <main className="app-shell min-h-screen px-4 py-6 sm:px-6 lg:py-10">
-      <div className="mx-auto max-w-6xl">
-        <nav className="console-nav" aria-label="Product">
-          <span className="brand-mark">T22</span>
-          <span className="brand-name">TOKEN-2022 PREFLIGHT</span>
-          <span className="nav-state">● RPC / READ ONLY</span>
-        </nav>
-
-        <header className="console-hero">
-          <div className="window-bar" aria-hidden="true">
-            <span className="window-dot window-dot-red" />
-            <span className="window-dot window-dot-amber" />
-            <span className="window-dot window-dot-green" />
-            <span className="window-path">~/token22/preflight</span>
-          </div>
-          <div className="hero-copy">
-            <p className="eyebrow">TRANSFER COMPATIBILITY INSPECTOR / v0.1.0</p>
-            <h1>Know what the mint changes before your transfer ships.</h1>
-            <p className="hero-description">
-              Paste account addresses into a familiar web form. Get a
-              deterministic report built from live Solana account data — no
-              signing, no transaction submission.
-            </p>
+    <main className="app-shell min-h-screen">
+      <div className="ide-window">
+        <header className="app-header">
+          <div className="title-block">
+            <p>READ-ONLY SOLANA DIAGNOSTICS</p>
+            <h1>Token-2022 Preflight</h1>
           </div>
         </header>
 
+        <div className="intro-line">
+          <span>Inspect mint constraints before building a transfer.</span>
+        </div>
+
         <section className="workspace-grid">
           <form onSubmit={submit} className="console-panel input-panel">
-            <div className="panel-label">/ INPUT PARAMETERS</div>
+            <div className="panel-label">inspect</div>
             <div className="mode-switch" aria-label="Analysis mode">
               {(["basic", "transfer"] as const).map((value) => (
                 <button
@@ -91,7 +78,7 @@ function PreflightPage(): React.JSX.Element {
                   onClick={() => setMode(value)}
                   className={`mode-button ${mode === value ? "mode-button-active" : ""}`}
                 >
-                  {value === "basic" ? "MINT ONLY" : "TRANSFER PATH"}
+                  {value === "basic" ? "mint" : "transfer"}
                 </button>
               ))}
             </div>
@@ -148,7 +135,7 @@ function PreflightPage(): React.JSX.Element {
               disabled={mutation.isPending}
               className="run-button"
             >
-              {mutation.isPending ? "[ PROCESSING ]" : "> RUN PREFLIGHT"}
+              {mutation.isPending ? "PROCESSING…" : "RUN PREFLIGHT"}
             </button>
             {mutation.isError && (
               <p role="alert" className="error-callout">
@@ -158,17 +145,35 @@ function PreflightPage(): React.JSX.Element {
           </form>
 
           <aside className="console-panel command-panel">
-            <div className="panel-label">/ CLI EQUIVALENT</div>
-            <h2>Same analysis, scriptable.</h2>
+            <div className="panel-label">session</div>
+            <h2>Current request</h2>
             <p className="panel-description">
-              The website stays form-first. Copy this only when you need the
-              identical check in a terminal or CI job.
+              Fill the form on the left. The equivalent CLI call remains
+              available for automation.
             </p>
+            <dl className="session-list">
+              <div>
+                <dt>mode</dt>
+                <dd>{mode}</dd>
+              </div>
+              <div>
+                <dt>cluster</dt>
+                <dd>{form.cluster}</dd>
+              </div>
+              <div>
+                <dt>network</dt>
+                <dd>read-only</dd>
+              </div>
+            </dl>
             <code className="command-preview">
               <span aria-hidden="true">$ </span>
               {cliCommand}
             </code>
-            <CopyButton value={cliCommand} label="Copy CLI command" />
+            <CopyButton
+              key={cliCommand}
+              value={cliCommand}
+              label="Copy CLI command"
+            />
           </aside>
         </section>
 
@@ -209,7 +214,7 @@ function Report({ report }: { report: PreflightReport }): React.JSX.Element {
     <section className="report-stack" aria-live="polite">
       <div className="console-panel status-panel">
         <div>
-          <p className="panel-label">/ PREFLIGHT RESULT</p>
+          <p className="panel-label">result</p>
           <h2>Transfer readiness</h2>
         </div>
         <span className={`status-badge ${statusClass(report.overallStatus)}`}>
@@ -230,7 +235,7 @@ function Report({ report }: { report: PreflightReport }): React.JSX.Element {
       </div>
       <div className="findings-section">
         <div className="section-heading">
-          <p className="panel-label">/ DIAGNOSTIC TAPE</p>
+          <p className="panel-label">findings</p>
           <h2>Findings</h2>
           <span>{String(report.findings.length).padStart(2, "0")} records</span>
         </div>
@@ -279,7 +284,7 @@ function Report({ report }: { report: PreflightReport }): React.JSX.Element {
         ))}
       </div>
       <div className="console-panel limitation-panel">
-        <div className="panel-label">/ KNOWN LIMITS</div>
+        <div className="panel-label">limitations</div>
         <h2>Limitations</h2>
         <ul>
           {report.limitations.map((value) => (
@@ -290,7 +295,7 @@ function Report({ report }: { report: PreflightReport }): React.JSX.Element {
       <div className="console-panel json-panel">
         <div className="json-heading">
           <div>
-            <p className="panel-label">/ MACHINE OUTPUT</p>
+            <p className="panel-label">report.json</p>
             <h2>JSON report</h2>
           </div>
           <CopyButton value={json} label="Copy JSON" />
@@ -323,13 +328,32 @@ function CopyButton({
   value: string;
   label: string;
 }): React.JSX.Element {
+  const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">(
+    "idle",
+  );
+
+  async function copyValue(): Promise<void> {
+    try {
+      if (navigator.clipboard === undefined) throw new Error("Unavailable");
+      await navigator.clipboard.writeText(value);
+      setCopyState("copied");
+    } catch {
+      setCopyState("failed");
+    }
+  }
+
   return (
     <button
       type="button"
-      onClick={() => void navigator.clipboard?.writeText(value)}
+      onClick={() => void copyValue()}
       className="copy-button"
+      aria-live="polite"
     >
-      {label}
+      {copyState === "copied"
+        ? "Copied"
+        : copyState === "failed"
+          ? "Copy failed"
+          : label}
     </button>
   );
 }

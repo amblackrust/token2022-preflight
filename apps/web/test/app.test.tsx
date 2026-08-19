@@ -56,6 +56,26 @@ afterEach(() => {
 });
 
 describe("App", () => {
+  it("confirms when the CLI command has been copied", async () => {
+    const writeText = vi.fn(async () => undefined);
+    vi.stubGlobal("navigator", { clipboard: { writeText } });
+    render(<App />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Copy CLI command" }));
+
+    expect(await screen.findByRole("button", { name: "Copied" })).toBeVisible();
+    expect(writeText).toHaveBeenCalledOnce();
+  });
+
+  it("keeps the header focused on product information", () => {
+    render(<App />);
+
+    expect(screen.getByText("Token-2022 Preflight")).toBeVisible();
+    expect(screen.queryByText("engine 0.1.0")).not.toBeInTheDocument();
+    expect(screen.queryByText("no signing")).not.toBeInTheDocument();
+    expect(screen.queryByText(/RPC READY/)).not.toBeInTheDocument();
+  });
+
   it("reveals token-account fields in Transfer mode", () => {
     render(<App />);
     fireEvent.click(screen.getByRole("button", { name: "Transfer" }));

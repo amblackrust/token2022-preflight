@@ -2,7 +2,13 @@ import { expect, test } from "@playwright/test";
 
 const MINT = "11111111111111111111111111111111";
 
-test("runs a basic preflight and exposes evidence", async ({ page }) => {
+test("runs a basic preflight and exposes evidence", async ({
+  context,
+  page,
+}) => {
+  await context.grantPermissions(["clipboard-write"], {
+    origin: "http://127.0.0.1:4173",
+  });
   await page.route("**/v1/preflight", async (route) => {
     await route.fulfill({
       contentType: "application/json",
@@ -46,7 +52,10 @@ test("runs a basic preflight and exposes evidence", async ({ page }) => {
   });
 
   await page.goto("/");
-  await page.getByLabel("Mint address").fill(MINT);
+  const mintInput = page.getByLabel("Mint address");
+  await mintInput.focus();
+  await expect(mintInput).toHaveCSS("outline-style", "none");
+  await mintInput.fill(MINT);
   await page.getByLabel("Cluster").selectOption("devnet");
   await page.getByRole("button", { name: "Run preflight" }).click();
 
@@ -60,4 +69,6 @@ test("runs a basic preflight and exposes evidence", async ({ page }) => {
   await expect(page.getByText(/token22 inspect/)).toContainText(
     `token22 inspect ${MINT} --cluster devnet`,
   );
+  await page.getByRole("button", { name: "Copy CLI command" }).click();
+  await expect(page.getByRole("button", { name: "Copied" })).toBeVisible();
 });
