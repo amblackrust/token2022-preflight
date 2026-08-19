@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="920" height="510" viewBox="0 0 920 510" role="img" aria-labelledby="title description">
+  <title id="title">Token-2022 Preflight CLI report</title>
+  <desc id="description">A terminal window showing an action-required Token-2022 transfer report with fee, memo, hook, and permanent delegate findings.</desc>
+  <rect width="920" height="510" rx="16" fill="#020617"/>
+  <rect x="1" y="1" width="918" height="508" rx="15" fill="none" stroke="#334155" stroke-width="2"/>
+  <circle cx="28" cy="26" r="6" fill="#f87171"/><circle cx="50" cy="26" r="6" fill="#fbbf24"/><circle cx="72" cy="26" r="6" fill="#34d399"/>
+  <g font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="17" fill="#cbd5e1">
+    <text x="28" y="68" fill="#67e8f9">$ token22 inspect 9x...abc --amount 100 --source ... --destination ...</text>
+    <text x="28" y="112" fill="#f8fafc" font-weight="700">Token-2022 Preflight</text>
+    <text x="28" y="150">Mint       9x...abc</text><text x="28" y="178">Cluster    mainnet-beta</text><text x="28" y="206">Program    Token-2022</text>
+    <text x="28" y="234">Status     <tspan fill="#fbbf24" font-weight="700">ACTION REQUIRED</tspan></text>
+    <text x="28" y="278" fill="#f8fafc" font-weight="700">Transfer</text>
+    <text x="48" y="308">Send       100000000</text><text x="48" y="336">Fee        500000</text><text x="48" y="364">Receive    99500000</text>
+    <text x="28" y="408" fill="#f8fafc" font-weight="700">Findings</text>
+    <text x="48" y="438"><tspan fill="#fbbf24">ACTION</tspan>  Destination requires a memo</text>
+    <text x="48" y="466"><tspan fill="#fbbf24">ACTION</tspan>  Transfer Hook requires additional accounts</text>
+    <text x="48" y="494"><tspan fill="#fde68a">WARNING</tspan> Permanent delegate can transfer or burn tokens</text>
+  </g>
+</svg>

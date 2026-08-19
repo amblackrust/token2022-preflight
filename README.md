@@ -4,6 +4,8 @@ Token-2022 Preflight is a read-only CLI, TypeScript SDK, HTTP API, and web demo 
 
 > This is an integration diagnostic, not a security audit or a transfer guarantee. It never signs or sends transactions.
 
+![Token-2022 Preflight CLI report](docs/cli.svg)
+
 ## Quick start
 
 Requirements: Node.js 24 or newer and npm 11 or newer.
