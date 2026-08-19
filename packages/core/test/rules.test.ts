@@ -92,4 +92,27 @@ describe("analyzeNormalizedToken", () => {
     expect(report.mint.supplyRaw).toBe("1000000");
     expect(() => JSON.stringify(report)).not.toThrow();
   });
+
+  it("treats metadata extensions as informational alongside warning extensions", () => {
+    const report = analyzeNormalizedToken({
+      ...BASE_ANALYSIS,
+      mint: {
+        ...BASE_ANALYSIS.mint,
+        extensions: [
+          { kind: "MetadataPointer" },
+          { kind: "TokenMetadata" },
+          { kind: "PermanentDelegate", delegate: "Delegate111" },
+          { kind: "InterestBearingConfig" },
+        ],
+      },
+    });
+
+    expect(report.overallStatus).toBe("WARNING");
+    expect(report.findings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: "metadata-pointer", status: "READY" }),
+        expect.objectContaining({ id: "token-metadata", status: "READY" }),
+      ]),
+    );
+  });
 });

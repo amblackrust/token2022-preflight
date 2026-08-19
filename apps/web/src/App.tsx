@@ -200,8 +200,9 @@ function Report({ report }: { report: PreflightReport }): React.JSX.Element {
           {report.overallStatus.replace("_", " ")}
         </h2>
         {report.transfer && (
-          <dl className="mt-5 grid grid-cols-3 gap-4 font-mono text-sm">
-            <Metric label="Send" value={report.transfer.amountRaw} />
+          <dl className="mt-5 grid grid-cols-2 gap-4 font-mono text-sm sm:grid-cols-4">
+            <Metric label="Amount (UI)" value={report.input.amountUi} />
+            <Metric label="Amount (raw)" value={report.transfer.amountRaw} />
             <Metric label="Fee" value={report.transfer.expectedFeeRaw} />
             <Metric
               label="Receive"
@@ -329,11 +330,17 @@ async function runPreflight({
       throw new Error("Request rate limit reached. Try again shortly.");
     if (response.status === 502 || response.status === 503)
       throw new Error("RPC service is unavailable. Try again shortly.");
-    throw new Error(
-      response.status === 400
-        ? "Check the entered addresses and amount."
-        : "Unexpected preflight error.",
-    );
+    if (response.status === 400) {
+      const body = (await response.json().catch(() => null)) as {
+        message?: unknown;
+      } | null;
+      throw new Error(
+        typeof body?.message === "string"
+          ? body.message
+          : "Check the entered addresses and amount.",
+      );
+    }
+    throw new Error("Unexpected preflight error.");
   }
   return (await response.json()) as PreflightReport;
 }

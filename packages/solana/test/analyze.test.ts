@@ -50,9 +50,30 @@ describe("analyzeTokenTransfer", () => {
     expect(report).toMatchObject({
       cluster: "devnet",
       tokenProgram: "token-2022",
-      overallStatus: "READY",
+      overallStatus: "UNKNOWN",
       transfer: { amountRaw: "100" },
     });
+  });
+
+  it("maps excess amount precision to INVALID_AMOUNT", async () => {
+    await expect(
+      analyzeTokenTransfer(
+        {
+          cluster: "devnet",
+          rpcUrl: "http://localhost:8899",
+          mint: MINT,
+          amountUi: "1.001",
+        },
+        {
+          reader: reader({ owner: TOKEN_2022_PROGRAM_ADDRESS, data: mintData }),
+        },
+      ),
+    ).rejects.toEqual(
+      expect.objectContaining<Partial<PreflightError>>({
+        code: "INVALID_AMOUNT",
+        message: "Amount has more than 2 decimal places",
+      }),
+    );
   });
 
   it("maps a missing mint to ACCOUNT_NOT_FOUND", async () => {

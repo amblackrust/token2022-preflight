@@ -100,7 +100,7 @@ export async function runCli(
         io.writeStdout(
           options.json
             ? `${JSON.stringify(report, null, 2)}\n`
-            : formatTerminalReport(report, options.color),
+            : formatTerminalReport(report, options.color, options.verbose),
         );
         exitCode = EXIT_CODES[report.overallStatus];
       } catch (error) {
@@ -132,6 +132,7 @@ export async function runCli(
 export function formatTerminalReport(
   report: PreflightReport,
   color: boolean,
+  verbose = false,
 ): string {
   const paint = color
     ? statusColor(report.overallStatus)
@@ -148,7 +149,8 @@ export function formatTerminalReport(
     lines.push(
       "",
       "Transfer",
-      `  Send       ${report.transfer.amountRaw ?? "unknown"}`,
+      `  Amount (UI)  ${report.input.amountUi ?? "unknown"}`,
+      `  Amount (raw) ${report.transfer.amountRaw ?? "unknown"}`,
     );
     if (report.transfer.expectedFeeRaw !== undefined)
       lines.push(`  Fee        ${report.transfer.expectedFeeRaw}`);
@@ -160,6 +162,22 @@ export function formatTerminalReport(
     lines.push("  READY   No blockers found by supported checks");
   for (const finding of report.findings) {
     lines.push(`  ${finding.status.padEnd(8)} ${finding.title}`);
+    for (const action of finding.requiredActions) {
+      lines.push(`    Action: ${action}`);
+    }
+    if (verbose) {
+      lines.push(`    Summary: ${finding.summary}`);
+      for (const item of finding.evidence) {
+        lines.push(
+          `    ${item.field}: ${formatDiagnosticValue(item.value)} (${item.account})`,
+        );
+      }
+      for (const [key, value] of Object.entries(
+        finding.technicalDetails ?? {},
+      )) {
+        lines.push(`    ${key}: ${formatDiagnosticValue(value)}`);
+      }
+    }
   }
   lines.push(
     "",
@@ -168,6 +186,10 @@ export function formatTerminalReport(
     "",
   );
   return `${lines.join("\n")}\n`;
+}
+
+function formatDiagnosticValue(value: unknown): string {
+  return typeof value === "string" ? value : JSON.stringify(value);
 }
 
 function validateTimeout(value: string): void {

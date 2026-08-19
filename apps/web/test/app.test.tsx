@@ -112,4 +112,52 @@ describe("App", () => {
       "RPC service is unavailable",
     );
   });
+
+  it("shows the API message for an invalid amount", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              code: "INVALID_AMOUNT",
+              message: "Amount has more than 6 decimal places",
+            }),
+            { status: 400, headers: { "Content-Type": "application/json" } },
+          ),
+      ),
+    );
+    render(<App />);
+    fireEvent.change(screen.getByLabelText("Mint address"), {
+      target: { value: MINT },
+    });
+    fireEvent.change(screen.getByLabelText("Amount (UI units)"), {
+      target: { value: "1.0000001" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Run preflight" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Amount has more than 6 decimal places",
+    );
+  });
+
+  it("labels UI and raw transfer amounts", async () => {
+    const value = {
+      ...report,
+      input: { mint: MINT, amountUi: "1.5" },
+      transfer: { amountRaw: "1500000" },
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(JSON.stringify(value), { status: 200 })),
+    );
+    render(<App />);
+    fireEvent.change(screen.getByLabelText("Mint address"), {
+      target: { value: MINT },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Run preflight" }));
+
+    expect(await screen.findByText("Amount (UI)")).toBeVisible();
+    expect(screen.getByText("Amount (raw)")).toBeVisible();
+  });
 });

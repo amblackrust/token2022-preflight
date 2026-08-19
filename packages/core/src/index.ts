@@ -62,6 +62,7 @@ export interface NormalizedAccountExtension {
 export interface NormalizedTokenAccount {
   address: string;
   owner?: string;
+  balanceRaw: bigint;
   state: "uninitialized" | "initialized" | "frozen";
   extensions: NormalizedAccountExtension[];
 }
@@ -144,10 +145,21 @@ export function parseUiAmount(amountUi: string, decimals: number): bigint {
 export function analyzeNormalizedToken(
   analysis: NormalizedAnalysis,
 ): PreflightReport {
+  const amountRaw =
+    analysis.amountUi === undefined
+      ? undefined
+      : parseUiAmount(analysis.amountUi, analysis.mint.decimals);
   const findings = [
     ...buildMintFindings(analysis),
-    ...buildAccountFindings(analysis.sourceTokenAccount, "source"),
-    ...buildAccountFindings(analysis.destinationTokenAccount, "destination"),
+    ...buildAccountFindings(analysis.sourceTokenAccount, "source", amountRaw),
+    ...buildAccountFindings(
+      analysis.destinationTokenAccount,
+      "destination",
+      amountRaw,
+    ),
+    ...(amountRaw !== undefined && analysis.sourceTokenAccount === undefined
+      ? [sourceBalanceUncheckedFinding(analysis.mint.address)]
+      : []),
   ].sort(compareFindings);
   const transfer = buildTransferSummary(analysis);
   return {
@@ -183,6 +195,11 @@ export function analyzeNormalizedToken(
     findings,
     limitations: [
       "No transaction simulation is performed; supported checks are not a transfer guarantee.",
+      ...(amountRaw !== undefined && analysis.sourceTokenAccount === undefined
+        ? [
+            "Source balance was not checked because no source token account was provided.",
+          ]
+        : []),
     ],
   };
 }
@@ -337,6 +354,21 @@ function mintExtensionFindings(
           mintEvidence(mint, `extensions.${extension.kind}`, true),
         ),
       ];
+    case "MetadataPointer":
+    case "TokenMetadata":
+      return [
+        makeFinding(
+          extension.kind === "MetadataPointer"
+            ? "metadata-pointer"
+            : "token-metadata",
+          "READY",
+          "metadata",
+          `${extension.kind} detected`,
+          "This metadata extension does not restrict ordinary transfers by itself.",
+          [],
+          mintEvidence(mint, `extensions.${extension.kind}`, true),
+        ),
+      ];
     case "ConfidentialTransferMint":
     case "ConfidentialTransferFeeConfig":
       return [
@@ -438,10 +470,30 @@ function selectFeeSchedule(
 function buildAccountFindings(
   account: NormalizedTokenAccount | undefined,
   role: "source" | "destination",
+  amountRaw?: bigint,
 ): Finding[] {
   if (account === undefined) return [];
   const findings: Finding[] = [];
-  if (account.state === "frozen") {
+  if (account.state === "uninitialized") {
+    findings.push(
+      makeFinding(
+        `${role}-uninitialized`,
+        "BLOCKED",
+        "account",
+        `${capitalize(role)} account is uninitialized`,
+        "Token-2022 cannot transfer with an uninitialized token account.",
+        [],
+        [
+          {
+            account: account.address,
+            accountKind: role,
+            field: "state",
+            value: "uninitialized",
+          },
+        ],
+      ),
+    );
+  } else if (account.state === "frozen") {
     findings.push(
       makeFinding(
         `${role}-frozen`,
@@ -460,6 +512,33 @@ function buildAccountFindings(
         ],
       ),
     );
+  }
+  if (
+    role === "source" &&
+    amountRaw !== undefined &&
+    account.balanceRaw < amountRaw
+  ) {
+    const finding = makeFinding(
+      "source-insufficient-balance",
+      "BLOCKED",
+      "balance",
+      "Source balance is insufficient",
+      "The source token account does not hold enough tokens for the requested amount.",
+      [],
+      [
+        {
+          account: account.address,
+          accountKind: role,
+          field: "balanceRaw",
+          value: account.balanceRaw.toString(),
+        },
+      ],
+    );
+    finding.technicalDetails = {
+      balanceRaw: account.balanceRaw.toString(),
+      amountRaw: amountRaw.toString(),
+    };
+    findings.push(finding);
   }
   for (const extension of account.extensions) {
     if (extension.kind === "MemoTransfer") {
@@ -527,6 +606,18 @@ function buildAccountFindings(
     }
   }
   return findings;
+}
+
+function sourceBalanceUncheckedFinding(mint: string): Finding {
+  return makeFinding(
+    "source-balance-unchecked",
+    "UNKNOWN",
+    "balance",
+    "Source balance was not checked",
+    "Provide source and destination token accounts to verify available balance.",
+    ["Provide both token account addresses for a transfer-aware check."],
+    mintEvidence(mint, "transfer.sourceBalanceChecked", false),
+  );
 }
 
 function makeFinding(

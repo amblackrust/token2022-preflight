@@ -31,6 +31,7 @@ import {
 
 export type PreflightErrorCode =
   | "INVALID_ADDRESS"
+  | "INVALID_AMOUNT"
   | "ACCOUNT_NOT_FOUND"
   | "UNSUPPORTED_OWNER"
   | "MINT_DECODE_FAILED"
@@ -171,6 +172,17 @@ export async function analyzeTokenTransfer(
     mintAddress,
     account.owner,
   );
+  if (input.amountUi !== undefined) {
+    try {
+      parseUiAmount(input.amountUi.trim(), mint.decimals);
+    } catch (cause) {
+      throw new PreflightError(
+        "INVALID_AMOUNT",
+        cause instanceof Error ? cause.message : "Amount is invalid",
+        { cause },
+      );
+    }
+  }
   const currentEpoch = mint.extensions.some(
     ({ kind }) => kind === "TransferFeeConfig",
   )
@@ -429,6 +441,7 @@ export function decodeTokenData(
   return {
     address: accountAddress,
     owner: token.owner,
+    balanceRaw: token.amount,
     state: accountState(token.state),
     extensions: (unwrapOption(token.extensions) ?? []).flatMap(
       (extension): NormalizedAccountExtension[] => {

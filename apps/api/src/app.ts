@@ -152,6 +152,7 @@ function httpStatus(
 ): 400 | 404 | 429 | 500 | 502 | 503 {
   switch (code) {
     case "INVALID_ADDRESS":
+    case "INVALID_AMOUNT":
     case "MINT_MISMATCH":
       return 400;
     case "ACCOUNT_NOT_FOUND":

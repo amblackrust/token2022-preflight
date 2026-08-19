@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { PreflightReport } from "@token2022-preflight/core";
+import { PreflightError } from "@token2022-preflight/solana";
 import { runCli, type CliIo } from "../src/index.js";
 
 const MINT = "11111111111111111111111111111111";
@@ -105,5 +106,89 @@ describe("runCli", () => {
 
     expect(output.stdout.join("")).toContain("Token-2022 Preflight");
     expect(output.stdout.join("")).toContain("Status     WARNING");
+  });
+
+  it("returns exit code 1 and explains an invalid amount", async () => {
+    const output = io();
+    const result = await runCli(
+      ["inspect", MINT, "--amount", "1.0000001"],
+      {},
+      output,
+      async () => {
+        throw new PreflightError(
+          "INVALID_AMOUNT",
+          "Amount has more than 6 decimal places",
+        );
+      },
+    );
+
+    expect(result).toBe(1);
+    expect(output.stderr.join("")).toContain(
+      "Amount has more than 6 decimal places",
+    );
+  });
+
+  it("prints required actions and labels UI and raw amounts", async () => {
+    const output = io();
+    const value = report("ACTION_REQUIRED");
+    value.input.amountUi = "1.5";
+    value.transfer = { amountRaw: "1500000" };
+    value.findings = [
+      {
+        id: "memo",
+        status: "ACTION_REQUIRED",
+        category: "account",
+        title: "Memo required",
+        summary: "Destination requires a memo.",
+        requiredActions: ["Add a Memo instruction."],
+        evidence: [],
+      },
+    ];
+
+    await runCli(
+      ["inspect", MINT, "--no-color"],
+      {},
+      output,
+      async () => value,
+    );
+
+    expect(output.stdout.join("")).toContain("Amount (UI)  1.5");
+    expect(output.stdout.join("")).toContain("Amount (raw) 1500000");
+    expect(output.stdout.join("")).toContain("Add a Memo instruction.");
+  });
+
+  it("prints finding diagnostics only with --verbose", async () => {
+    const output = io();
+    const value = report("WARNING");
+    value.findings = [
+      {
+        id: "delegate",
+        status: "WARNING",
+        category: "authority",
+        title: "Permanent delegate",
+        summary: "Delegate can move funds.",
+        requiredActions: [],
+        evidence: [
+          {
+            account: MINT,
+            accountKind: "mint",
+            field: "delegate",
+            value: MINT,
+          },
+        ],
+        technicalDetails: { authority: MINT },
+      },
+    ];
+
+    await runCli(
+      ["inspect", MINT, "--verbose", "--no-color"],
+      {},
+      output,
+      async () => value,
+    );
+
+    expect(output.stdout.join("")).toContain("Delegate can move funds.");
+    expect(output.stdout.join("")).toContain("delegate:");
+    expect(output.stdout.join("")).toContain("authority:");
   });
 });

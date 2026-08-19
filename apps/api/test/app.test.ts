@@ -111,6 +111,27 @@ describe("API", () => {
     });
   });
 
+  it("maps INVALID_AMOUNT to HTTP 400", async () => {
+    const response = await app({
+      analyzer: async () => {
+        throw new PreflightError(
+          "INVALID_AMOUNT",
+          "Amount has more than 6 decimal places",
+        );
+      },
+    }).inject({
+      method: "POST",
+      url: "/v1/preflight",
+      payload: { cluster: "devnet", mint: MINT, amountUi: "1.0000001" },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({
+      code: "INVALID_AMOUNT",
+      message: "Amount has more than 6 decimal places",
+    });
+  });
+
   it("retries one transient RPC failure", async () => {
     const analyzer = vi
       .fn()

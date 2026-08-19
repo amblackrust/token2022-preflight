@@ -223,4 +223,60 @@ describe("transfer-aware rules", () => {
       ],
     });
   });
+
+  it.each(["source", "destination"] as const)(
+    "blocks an uninitialized %s token account",
+    (role) => {
+      const report = analyzeNormalizedToken(
+        analysis({
+          [`${role}TokenAccount`]: {
+            address: role === "source" ? SOURCE : DESTINATION,
+            state: "uninitialized",
+            balanceRaw: 0n,
+            extensions: [],
+          },
+        }),
+      );
+
+      expect(report.overallStatus).toBe("BLOCKED");
+      expect(report.findings[0]).toMatchObject({
+        id: `${role}-uninitialized`,
+        status: "BLOCKED",
+      });
+    },
+  );
+
+  it("blocks a transfer when the source balance is insufficient", () => {
+    const report = analyzeNormalizedToken(
+      analysis({
+        amountUi: "1.01",
+        sourceTokenAccount: {
+          address: SOURCE,
+          state: "initialized",
+          balanceRaw: 100n,
+          extensions: [],
+        },
+      }),
+    );
+
+    expect(report.overallStatus).toBe("BLOCKED");
+    expect(report.findings[0]).toMatchObject({
+      id: "source-insufficient-balance",
+      status: "BLOCKED",
+      technicalDetails: { balanceRaw: "100", amountRaw: "101" },
+    });
+  });
+
+  it("does not claim READY when an amount has no source balance check", () => {
+    const report = analyzeNormalizedToken(analysis({ amountUi: "1" }));
+
+    expect(report.overallStatus).toBe("UNKNOWN");
+    expect(report.findings[0]).toMatchObject({
+      id: "source-balance-unchecked",
+      status: "UNKNOWN",
+    });
+    expect(report.limitations).toContain(
+      "Source balance was not checked because no source token account was provided.",
+    );
+  });
 });
