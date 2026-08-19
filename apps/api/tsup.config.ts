@@ -1,10 +1,8 @@
 import { defineConfig } from "tsup";
 
 export default defineConfig({
-  entry: ["src/bin.ts"],
+  entry: ["src/server.ts"],
   format: ["esm"],
-  dts: false,
   clean: true,
   noExternal: ["@token2022-preflight/core", "@token2022-preflight/solana"],
-  banner: { js: "#!/usr/bin/env node" },
 });

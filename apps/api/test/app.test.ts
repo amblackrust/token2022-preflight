@@ -111,6 +111,21 @@ describe("API", () => {
     });
   });
 
+  it("retries one transient RPC failure", async () => {
+    const analyzer = vi
+      .fn()
+      .mockRejectedValueOnce(new PreflightError("RPC_UNAVAILABLE", "temporary"))
+      .mockResolvedValueOnce(report());
+    const response = await app({ analyzer, retryAttempts: 2 }).inject({
+      method: "POST",
+      url: "/v1/preflight",
+      payload: { cluster: "devnet", mint: MINT },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(analyzer).toHaveBeenCalledTimes(2);
+  });
+
   it("rate limits requests", async () => {
     const instance = app({ rateLimitMax: 1 });
     const request = {

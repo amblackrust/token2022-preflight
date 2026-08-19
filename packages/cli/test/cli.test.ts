@@ -92,6 +92,7 @@ describe("runCli", () => {
       expect.objectContaining({
         rpcUrl: "https://flag.example",
         cluster: "devnet",
+        timeoutMs: 10_000,
       }),
     );
   });

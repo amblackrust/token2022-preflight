@@ -42,6 +42,8 @@ export interface ApiOptions {
   cacheTtlMs?: number;
   cacheMax?: number;
   rateLimitMax?: number;
+  retryAttempts?: number;
+  rpcTimeoutMs?: number;
   logger?: boolean;
 }
 
@@ -79,10 +81,11 @@ export function createApp(options: ApiOptions): FastifyInstance {
       const cached = cache.get(cacheKey);
       if (cached !== undefined) return cached;
 
-      const report = await analyzer({
+      const analysisInput: AnalyzeTokenTransferInput = {
         cluster: parsed.data.cluster,
         mint: parsed.data.mint,
         rpcUrl: options.rpcUrls[parsed.data.cluster],
+        timeoutMs: options.rpcTimeoutMs ?? 8_000,
         ...(parsed.data.amountUi === undefined
           ? {}
           : { amountUi: parsed.data.amountUi }),
@@ -92,7 +95,12 @@ export function createApp(options: ApiOptions): FastifyInstance {
         ...(parsed.data.destinationTokenAccount === undefined
           ? {}
           : { destinationTokenAccount: parsed.data.destinationTokenAccount }),
-      });
+      };
+      const report = await analyzeWithRetry(
+        analyzer,
+        analysisInput,
+        options.retryAttempts ?? 2,
+      );
       cache.set(cacheKey, report);
       return report;
     });
@@ -118,6 +126,25 @@ export function createApp(options: ApiOptions): FastifyInstance {
       .send({ code: "UNEXPECTED_ERROR", message: "Unexpected server error" });
   });
   return app;
+}
+
+async function analyzeWithRetry(
+  analyzer: (input: AnalyzeTokenTransferInput) => Promise<PreflightReport>,
+  input: AnalyzeTokenTransferInput,
+  attempts: number,
+): Promise<PreflightReport> {
+  const boundedAttempts = Math.max(1, Math.min(attempts, 3));
+  for (let attempt = 1; attempt <= boundedAttempts; attempt += 1) {
+    try {
+      return await analyzer(input);
+    } catch (error) {
+      const transient =
+        error instanceof PreflightError &&
+        (error.code === "RPC_UNAVAILABLE" || error.code === "RPC_TIMEOUT");
+      if (!transient || attempt === boundedAttempts) throw error;
+    }
+  }
+  throw new PreflightError("UNEXPECTED_ERROR", "Retry loop exhausted");
 }
 
 function httpStatus(

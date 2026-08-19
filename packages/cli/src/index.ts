@@ -87,6 +87,7 @@ export async function runCli(
           cluster: options.cluster,
           rpcUrl,
           mint,
+          timeoutMs: Number(options.timeout),
           ...(options.amount === undefined ? {} : { amountUi: options.amount }),
           ...(options.source === undefined
             ? {}

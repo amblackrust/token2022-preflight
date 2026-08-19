@@ -6,7 +6,7 @@ import {
   getTokenEncoder,
   TOKEN_2022_PROGRAM_ADDRESS,
 } from "@solana-program/token-2022";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   analyzeTokenTransfer,
@@ -66,6 +66,37 @@ describe("analyzeTokenTransfer", () => {
         code: "ACCOUNT_NOT_FOUND",
       }),
     );
+  });
+
+  it("returns a BLOCKED report for an unsupported account owner", async () => {
+    const result = await analyzeTokenTransfer(
+      { cluster: "devnet", rpcUrl: "http://localhost:8899", mint: MINT },
+      { reader: reader({ owner: MINT, data: mintData }) },
+    );
+
+    expect(result).toMatchObject({
+      tokenProgram: "unsupported",
+      overallStatus: "BLOCKED",
+      findings: [{ id: "unsupported-owner", status: "BLOCKED" }],
+    });
+  });
+
+  it("returns an UNKNOWN partial report when mint decoding fails", async () => {
+    const result = await analyzeTokenTransfer(
+      { cluster: "devnet", rpcUrl: "http://localhost:8899", mint: MINT },
+      {
+        reader: reader({
+          owner: TOKEN_2022_PROGRAM_ADDRESS,
+          data: new Uint8Array([1, 2, 3]),
+        }),
+      },
+    );
+
+    expect(result).toMatchObject({
+      tokenProgram: "token-2022",
+      overallStatus: "UNKNOWN",
+      findings: [{ id: "mint-decode-failed", status: "UNKNOWN" }],
+    });
   });
 
   it("rejects source and destination unless both are provided", async () => {
@@ -144,5 +175,67 @@ describe("analyzeTokenTransfer", () => {
         status: "ACTION_REQUIRED",
       }),
     ]);
+  });
+
+  it("resolves Transfer Hook additional accounts for a complete scenario", async () => {
+    const hookMintData = getMintEncoder().encode({
+      mintAuthority: none(),
+      supply: 100n,
+      decimals: 2,
+      isInitialized: true,
+      freezeAuthority: none(),
+      extensions: {
+        __option: "Some",
+        value: [
+          extension("TransferHook", {
+            authority: SOURCE,
+            programId: DESTINATION,
+          }),
+        ],
+      },
+    });
+    const tokenData = getTokenEncoder().encode({
+      mint: MINT,
+      owner: SOURCE,
+      amount: 100n,
+      delegate: none(),
+      state: AccountState.Initialized,
+      isNative: none(),
+      delegatedAmount: 0n,
+      closeAuthority: none(),
+      extensions: none(),
+    });
+    const resolveTransferHook = vi.fn(async () => [
+      "Meta111111111111111111111111111111111111111",
+    ]);
+    const accountReader = {
+      getAccount: async (accountAddress: string) => {
+        if (accountAddress === MINT)
+          return { owner: TOKEN_2022_PROGRAM_ADDRESS, data: hookMintData };
+        return { owner: TOKEN_2022_PROGRAM_ADDRESS, data: tokenData };
+      },
+      getEpoch: async () => 0n,
+      resolveTransferHook,
+    };
+
+    const result = await analyzeTokenTransfer(
+      {
+        cluster: "devnet",
+        rpcUrl: "http://localhost:8899",
+        mint: MINT,
+        amountUi: "1",
+        sourceTokenAccount: SOURCE,
+        destinationTokenAccount: DESTINATION,
+      },
+      { reader: accountReader },
+    );
+
+    expect(resolveTransferHook).toHaveBeenCalledOnce();
+    expect(result.findings[0]).toMatchObject({
+      id: "transfer-hook",
+      technicalDetails: {
+        additionalAccounts: ["Meta111111111111111111111111111111111111111"],
+      },
+    });
   });
 });

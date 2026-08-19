@@ -103,6 +103,14 @@ npm audit --audit-level=high
 
 Live RPC tests belong under `tests/live` and are intentionally separate from deterministic unit tests. They must remain read-only.
 
+```bash
+RUN_LIVE_TESTS=1 \
+LIVE_DEVNET_RPC_URL=https://api.devnet.solana.com \
+LIVE_DEVNET_LEGACY_MINT=<LEGACY_MINT> \
+LIVE_DEVNET_TOKEN_2022_MINT=<TOKEN_2022_MINT> \
+npm test -- tests/live
+```
+
 ### Environment variables
 
 | Variable          | Purpose                                        |

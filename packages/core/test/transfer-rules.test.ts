@@ -148,6 +148,33 @@ describe("transfer-aware rules", () => {
     ]);
   });
 
+  it("includes resolved Transfer Hook accounts in the finding", () => {
+    const report = analyzeNormalizedToken(
+      analysis({
+        mint: {
+          ...analysis().mint,
+          extensions: [
+            {
+              kind: "TransferHook",
+              programAddress: "Hook111111111111111111111111111111111111111",
+              resolution: {
+                status: "resolved",
+                accounts: ["Meta111111111111111111111111111111111111111"],
+              },
+            },
+          ],
+        },
+      }),
+    );
+
+    expect(report.findings[0]).toMatchObject({
+      id: "transfer-hook",
+      technicalDetails: {
+        additionalAccounts: ["Meta111111111111111111111111111111111111111"],
+      },
+    });
+  });
+
   it("warns about a permanent delegate and marks confidential transfer unsupported", () => {
     const report = analyzeNormalizedToken(
       analysis({

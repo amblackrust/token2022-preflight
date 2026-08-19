@@ -61,6 +61,7 @@ export interface NormalizedAccountExtension {
 
 export interface NormalizedTokenAccount {
   address: string;
+  owner?: string;
   state: "uninitialized" | "initialized" | "frozen";
   extensions: NormalizedAccountExtension[];
 }
@@ -98,10 +99,10 @@ export interface PreflightReport {
   tokenProgram: TokenProgram;
   mint: {
     address: string;
-    decimals: number;
-    supplyRaw: string;
-    mintAuthority: string | null;
-    freezeAuthority: string | null;
+    decimals?: number;
+    supplyRaw?: string;
+    mintAuthority?: string | null;
+    freezeAuthority?: string | null;
     extensions: string[];
   };
   transfer?: {
@@ -268,21 +269,25 @@ function mintExtensionFindings(
     case "TransferFeeConfig":
       return [transferFeeFinding(analysis, extension)];
     case "TransferHook": {
-      const findings = [
-        makeFinding(
-          "transfer-hook",
-          "ACTION_REQUIRED",
-          "transfer",
-          "Transfer Hook requires additional processing",
-          "The transfer must invoke the configured hook with its required accounts.",
-          ["Resolve and include the hook ExtraAccountMetaList accounts."],
-          mintEvidence(
-            mint,
-            "extensions.TransferHook.programAddress",
-            extension.programAddress,
-          ),
+      const hookFinding = makeFinding(
+        "transfer-hook",
+        "ACTION_REQUIRED",
+        "transfer",
+        "Transfer Hook requires additional processing",
+        "The transfer must invoke the configured hook with its required accounts.",
+        ["Resolve and include the hook ExtraAccountMetaList accounts."],
+        mintEvidence(
+          mint,
+          "extensions.TransferHook.programAddress",
+          extension.programAddress,
         ),
-      ];
+      );
+      if (extension.resolution?.status === "resolved") {
+        hookFinding.technicalDetails = {
+          additionalAccounts: extension.resolution.accounts ?? [],
+        };
+      }
+      const findings = [hookFinding];
       if (extension.resolution?.status === "unresolved") {
         findings.push(
           makeFinding(

@@ -11,12 +11,14 @@ import {
   AccountState,
   getMintDecoder,
   getTokenDecoder,
+  resolveExtraAccountMetasForExecute,
   TOKEN_2022_PROGRAM_ADDRESS,
   TOKEN_PROGRAM_ADDRESS,
   type Extension,
 } from "@solana-program/token-2022";
 import {
   analyzeNormalizedToken,
+  parseUiAmount,
   type Cluster,
   type NormalizedAccountExtension,
   type NormalizedAnalysis,
@@ -59,6 +61,16 @@ export interface RawAccount {
 export interface AccountReader {
   getAccount(accountAddress: Address): Promise<RawAccount | null>;
   getEpoch(): Promise<bigint>;
+  resolveTransferHook?(input: TransferHookResolutionInput): Promise<string[]>;
+}
+
+export interface TransferHookResolutionInput {
+  programAddress: Address;
+  source: Address;
+  mint: Address;
+  destination: Address;
+  owner: Address;
+  amountRaw: bigint;
 }
 
 export interface AnalyzeTokenTransferInput {
@@ -68,6 +80,7 @@ export interface AnalyzeTokenTransferInput {
   amountUi?: string;
   sourceTokenAccount?: string;
   destinationTokenAccount?: string;
+  timeoutMs?: number;
 }
 
 export interface AnalyzeDependencies {
@@ -100,13 +113,56 @@ export async function analyzeTokenTransfer(
   }
 
   const reader =
-    dependencies.reader ?? createAccountReader(input.rpcUrl, input.cluster);
+    dependencies.reader ??
+    createAccountReader(input.rpcUrl, input.cluster, input.timeoutMs ?? 10_000);
   const account = await reader.getAccount(mintAddress);
   if (account === null) {
     throw new PreflightError("ACCOUNT_NOT_FOUND", "Mint account was not found");
   }
-  const tokenProgram = detectTokenProgram(account.owner);
-  const mint = decodeMintData(mintAddress, account.data);
+  let tokenProgram: TokenProgram;
+  try {
+    tokenProgram = detectTokenProgram(account.owner);
+  } catch (error) {
+    if (error instanceof PreflightError && error.code === "UNSUPPORTED_OWNER") {
+      return partialReport(
+        input,
+        "unsupported",
+        "BLOCKED",
+        "unsupported-owner",
+        "Mint owner is unsupported",
+        error.message,
+        [
+          {
+            account: mintAddress,
+            accountKind: "mint",
+            field: "owner",
+            value: account.owner,
+          },
+        ],
+      );
+    }
+    throw error;
+  }
+  let mint: NormalizedMint;
+  try {
+    mint = decodeMintData(mintAddress, account.data);
+  } catch (error) {
+    if (
+      error instanceof PreflightError &&
+      error.code === "MINT_DECODE_FAILED"
+    ) {
+      return partialReport(
+        input,
+        tokenProgram,
+        "UNKNOWN",
+        "mint-decode-failed",
+        "Mint data could not be decoded",
+        error.message,
+        [],
+      );
+    }
+    throw error;
+  }
   const tokenAccounts = await fetchTransferAccounts(
     input,
     reader,
@@ -118,6 +174,7 @@ export async function analyzeTokenTransfer(
   )
     ? await reader.getEpoch()
     : undefined;
+  await resolveTransferHook(mint, tokenAccounts, input, reader, mintAddress);
 
   return analyzeNormalizedToken({
     cluster: input.cluster,
@@ -129,6 +186,50 @@ export async function analyzeTokenTransfer(
     ...(currentEpoch === undefined ? {} : { currentEpoch }),
     ...tokenAccounts,
   });
+}
+
+function partialReport(
+  input: AnalyzeTokenTransferInput,
+  tokenProgram: TokenProgram,
+  status: "BLOCKED" | "UNKNOWN",
+  findingId: string,
+  title: string,
+  summary: string,
+  evidence: PreflightReport["findings"][number]["evidence"],
+): PreflightReport {
+  return {
+    schemaVersion: "1.0",
+    engineVersion: "0.1.0",
+    generatedAt: new Date().toISOString(),
+    cluster: input.cluster,
+    input: {
+      mint: input.mint.trim(),
+      ...(input.amountUi === undefined ? {} : { amountUi: input.amountUi }),
+      ...(input.sourceTokenAccount === undefined
+        ? {}
+        : { sourceTokenAccount: input.sourceTokenAccount }),
+      ...(input.destinationTokenAccount === undefined
+        ? {}
+        : { destinationTokenAccount: input.destinationTokenAccount }),
+    },
+    tokenProgram,
+    mint: { address: input.mint.trim(), extensions: [] },
+    overallStatus: status,
+    findings: [
+      {
+        id: findingId,
+        status,
+        category: "program",
+        title,
+        summary,
+        requiredActions: [],
+        evidence,
+      },
+    ],
+    limitations: [
+      "Analysis stopped before extension checks because the mint could not be decoded safely.",
+    ],
+  };
 }
 
 async function fetchTransferAccounts(
@@ -197,6 +298,7 @@ function parseAddress(value: string, label: string): Address {
 export function createAccountReader(
   rpcUrl: string,
   cluster: Cluster,
+  timeoutMs = 10_000,
 ): AccountReader {
   const clusterUrl = cluster === "devnet" ? devnet(rpcUrl) : mainnet(rpcUrl);
   const rpc = createSolanaRpc(clusterUrl);
@@ -205,7 +307,7 @@ export function createAccountReader(
       try {
         const { value } = await rpc
           .getAccountInfo(accountAddress, { encoding: "base64" })
-          .send();
+          .send({ abortSignal: AbortSignal.timeout(timeoutMs) });
         if (value === null) return null;
         return {
           owner: value.owner,
@@ -217,7 +319,27 @@ export function createAccountReader(
     },
     async getEpoch() {
       try {
-        return (await rpc.getEpochInfo().send()).epoch;
+        return (
+          await rpc
+            .getEpochInfo()
+            .send({ abortSignal: AbortSignal.timeout(timeoutMs) })
+        ).epoch;
+      } catch (cause) {
+        throw mapRpcError(cause);
+      }
+    },
+    async resolveTransferHook(input) {
+      try {
+        const metas = await resolveExtraAccountMetasForExecute({
+          rpc,
+          transferHookProgramAddress: input.programAddress,
+          source: input.source,
+          mint: input.mint,
+          destination: input.destination,
+          owner: input.owner,
+          amount: input.amountRaw,
+        });
+        return metas.map(({ address }) => address);
       } catch (cause) {
         throw mapRpcError(cause);
       }
@@ -227,6 +349,14 @@ export function createAccountReader(
 
 function mapRpcError(cause: unknown): PreflightError {
   const message = cause instanceof Error ? cause.message : "Unknown RPC error";
+  if (
+    (cause instanceof Error && cause.name === "TimeoutError") ||
+    /timed?\s*out|abort/i.test(message)
+  ) {
+    return new PreflightError("RPC_TIMEOUT", "Solana RPC request timed out", {
+      cause,
+    });
+  }
   if (/429|rate.?limit/i.test(message)) {
     return new PreflightError(
       "RPC_RATE_LIMITED",
@@ -296,6 +426,7 @@ export function decodeTokenData(
   }
   return {
     address: accountAddress,
+    owner: token.owner,
     state: accountState(token.state),
     extensions: (unwrapOption(token.extensions) ?? []).flatMap(
       (extension): NormalizedAccountExtension[] => {
@@ -318,6 +449,58 @@ export function decodeTokenData(
       },
     ),
   };
+}
+
+async function resolveTransferHook(
+  mint: NormalizedMint,
+  tokenAccounts: Pick<
+    NormalizedAnalysis,
+    "sourceTokenAccount" | "destinationTokenAccount"
+  >,
+  input: AnalyzeTokenTransferInput,
+  reader: AccountReader,
+  mintAddress: Address,
+): Promise<void> {
+  const extension = mint.extensions.find(({ kind }) => kind === "TransferHook");
+  if (extension === undefined) return;
+  const source = tokenAccounts.sourceTokenAccount;
+  const destination = tokenAccounts.destinationTokenAccount;
+  if (
+    input.amountUi === undefined ||
+    source === undefined ||
+    destination === undefined ||
+    source.owner === undefined ||
+    extension.programAddress === undefined ||
+    reader.resolveTransferHook === undefined
+  ) {
+    extension.resolution = {
+      status: "unresolved",
+      reason:
+        "Amount and both token accounts are required to resolve Transfer Hook accounts",
+    };
+    return;
+  }
+  try {
+    extension.resolution = {
+      status: "resolved",
+      accounts: await reader.resolveTransferHook({
+        programAddress: address(extension.programAddress),
+        source: address(source.address),
+        mint: mintAddress,
+        destination: address(destination.address),
+        owner: address(source.owner),
+        amountRaw: parseUiAmount(input.amountUi.trim(), mint.decimals),
+      }),
+    };
+  } catch (error) {
+    extension.resolution = {
+      status: "unresolved",
+      reason:
+        error instanceof Error
+          ? error.message
+          : "Transfer Hook accounts could not be resolved",
+    };
+  }
 }
 
 function optionAddress(

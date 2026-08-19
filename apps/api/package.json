@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsup src/server.ts --format esm --clean",
+    "build": "tsup --config tsup.config.ts",
     "start": "node dist/server.js",
     "test": "vitest run",
     "typecheck": "tsc -b --pretty false"

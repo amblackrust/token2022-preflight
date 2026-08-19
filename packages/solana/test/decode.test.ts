@@ -54,6 +54,7 @@ describe("decodeTokenData", () => {
 
     expect(decodeTokenData(AUTHORITY, data, MINT)).toEqual({
       address: AUTHORITY,
+      owner: AUTHORITY,
       state: "frozen",
       extensions: [
         { kind: "MemoTransfer", requireIncomingTransferMemos: true },
