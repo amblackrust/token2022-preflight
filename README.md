@@ -1,8 +1,11 @@
 # Token-2022 Preflight
 
-Token-2022 Preflight is a read-only CLI, TypeScript SDK, HTTP API, and web demo that explains how a Solana token affects a transfer flow.
+Token-2022 Preflight is a read-only diagnostic CLI that explains how a Solana token mint and optional token accounts affect a transfer flow.
 
-> This is an integration diagnostic, not a security audit or a transfer guarantee. It never signs or sends transactions.
+Token-2022 extensions can change transfer eligibility, required instructions, account lists, fees, and displayed amounts. Preflight reads the current on-chain account state and turns those details into actionable findings before an integration builds a transfer.
+
+> [!IMPORTANT]
+> Token-2022 Preflight is an integration diagnostic, not a security audit or a transfer guarantee. It never signs or sends transactions.
 
 ![Token-2022 Preflight CLI report](docs/cli.svg)
 
@@ -10,102 +13,183 @@ Token-2022 Preflight is a read-only CLI, TypeScript SDK, HTTP API, and web demo 
 
 Requirements: Node.js 24 or newer and npm 11 or newer.
 
-```bash
-npm ci
-npm run build
-node packages/cli/dist/bin.js inspect <MINT_ADDRESS> --cluster devnet
-```
-
-After publication, the package exposes the shorter command:
+Run the CLI without installing it globally:
 
 ```bash
 npx token2022-preflight inspect <MINT_ADDRESS>
+```
+
+The default cluster is `mainnet-beta`. Use `--cluster devnet` when inspecting a devnet mint.
+
+### Global installation
+
+```bash
+npm install --global token2022-preflight
 token22 inspect <MINT_ADDRESS>
 ```
 
-Transfer scenario:
+## Usage
+
+### Basic inspection
+
+Inspect only the mint account:
 
 ```bash
-token22 inspect <MINT_ADDRESS> \
+npx token2022-preflight inspect <MINT_ADDRESS> --cluster mainnet-beta
+```
+
+### Transfer inspection
+
+Provide both token accounts and an amount to check account state, source balance, transfer fees, memo requirements, and Transfer Hook accounts:
+
+```bash
+npx token2022-preflight inspect <MINT_ADDRESS> \
   --cluster mainnet-beta \
   --amount 100 \
   --source <SOURCE_TOKEN_ACCOUNT> \
   --destination <DESTINATION_TOKEN_ACCOUNT>
 ```
 
-Machine-readable output for CI:
+`--amount` accepts UI units and must not contain more decimal places than the mint supports. Source and destination must be token-account addresses, not wallet addresses, and must be provided together.
+
+Use `--verbose` to include finding summaries, evidence, and technical details in the terminal report.
+
+### JSON output
+
+`--json` writes only the versioned report to stdout, making it suitable for CI and scripts:
 
 ```bash
-token22 inspect <MINT_ADDRESS> --json > report.json
+npx token2022-preflight inspect <MINT_ADDRESS> --json > report.json
 ```
 
-`--json` writes only the versioned report to stdout. Exit codes are `0` for `READY`/`WARNING`, `2` for `ACTION_REQUIRED`, `3` for `BLOCKED`, `4` for `UNKNOWN`, and `1` for input, RPC, or internal errors.
+### Exit codes
+
+| Code | Status or error               | Meaning                                                               |
+| ---: | ----------------------------- | --------------------------------------------------------------------- |
+|  `0` | `READY`, `WARNING`            | No known blocking action is required; warnings may still need review. |
+|  `1` | Input, RPC, or internal error | The analysis could not complete normally.                             |
+|  `2` | `ACTION_REQUIRED`             | The integration must add required processing or instructions.         |
+|  `3` | `BLOCKED`                     | The checked transfer flow is blocked by known state or rules.         |
+|  `4` | `UNKNOWN`                     | Supported checks cannot determine transfer readiness.                 |
 
 ## RPC configuration
 
-Resolution priority is `--rpc-url`, `SOLANA_RPC_URL`, then the public endpoint for the selected cluster. Supported clusters are `mainnet-beta` and `devnet`. The CLI connects directly to RPC and does not depend on this project's API.
+The CLI connects directly to Solana RPC; it does not require this repository's API, web app, or Docker services.
+
+RPC resolution order:
+
+1. `--rpc-url <URL>`
+2. `SOLANA_RPC_URL`
+3. the public endpoint for the selected cluster
 
 ```bash
-SOLANA_RPC_URL=https://your-provider.example token22 inspect <MINT_ADDRESS>
+SOLANA_RPC_URL=https://rpc.example.com \
+  npx token2022-preflight inspect <MINT_ADDRESS>
 ```
+
+```bash
+npx token2022-preflight inspect <MINT_ADDRESS> \
+  --rpc-url https://rpc.example.com
+```
+
+Supported clusters are `mainnet-beta` and `devnet`. Public endpoints can be rate limited, so use a provider endpoint for repeated or production use.
 
 ## Supported checks
 
-- Legacy Token Program versus Token-2022 owner detection
+- Legacy Token Program versus Token-2022 ownership
+- Mint and token-account decoding and initialization state
 - Non-transferable and pausable mints
-- Transfer fee schedule selection by epoch and bigint-safe fee calculation
-- Default and actual frozen account state
-- Destination memo requirement
-- Transfer Hook detection and explicit unresolved-account findings
+- Transfer fee schedule selection, maximum fee, and expected received amount
+- Default frozen state and actual source/destination account state
+- Source raw balance versus the requested amount
+- Destination Memo Transfer requirements
+- Transfer Hook detection and ExtraAccountMetaList resolution when transfer context is provided
 - Permanent delegate and freeze authority warnings
 - CPI Guard and Immutable Owner account information
 - Interest-bearing and scaled UI amount warnings
-- Confidential and unknown extensions reported as unsupported/unknown
+- MetadataPointer and TokenMetadata informational findings
+- Confidential and unknown extensions reported as unsupported or unknown
 
-Every material finding includes the account, field, and observed value used as evidence. Unsupported extensions prevent a misleading `READY` result.
+Findings include the observed account fields used as evidence. Unsupported behavior prevents a misleading unconditional `READY` result.
 
-## TypeScript SDK
+## Limitations
 
-```ts
-import { analyzeTokenTransfer } from "@token2022-preflight/solana";
+- No transaction simulation is performed.
+- A `READY` result means no blocker was found by supported checks; it does not guarantee that a transaction will succeed.
+- Transfer Hook accounts can be resolved, but arbitrary hook program business logic is not interpreted.
+- Confidential transfer flows are detected but not analyzed.
+- Interest-bearing and scaled UI amount extensions are identified, but this version does not calculate their display conversion.
+- Source balance cannot be checked unless an amount and both token accounts are provided.
+- Results reflect RPC state at analysis time and can become stale.
 
-const report = await analyzeTokenTransfer({
-  rpcUrl: process.env.SOLANA_RPC_URL!,
-  cluster: "mainnet-beta",
-  mint: "<MINT_ADDRESS>",
-  amountUi: "100",
-  sourceTokenAccount: "<SOURCE_TOKEN_ACCOUNT>",
-  destinationTokenAccount: "<DESTINATION_TOKEN_ACCOUNT>",
-});
+## Architecture
+
+```mermaid
+flowchart LR
+    CLI[CLI] --> SOL[Solana adapter]
+    WEB[Web] --> API[HTTP API]
+    API --> SOL
+    SOL --> RPC[Solana RPC]
+    SOL --> CORE[Core rule engine]
+    CORE --> REPORT[Versioned report]
+    CLI --> REPORT
+    API --> REPORT
 ```
 
-Raw token amounts and fees remain `bigint` internally and become decimal strings in the public report.
+- `packages/cli` parses commands, renders terminal output, and is the only package intended for npm publication.
+- `packages/core` contains RPC-independent report types, amount handling, and rules.
+- `packages/solana` reads RPC accounts, validates program ownership, decodes Token and Token-2022 data, and resolves Transfer Hook accounts.
+- `apps/api` exposes the analyzer through a validated, rate-limited Fastify endpoint.
+- `apps/web` provides the form-based React interface and consumes the HTTP API.
+
+The reusable TypeScript core and Solana adapter exist as internal workspaces in this monorepo. They are not advertised as published npm SDK packages.
 
 ## Web and API with Docker
+
+Docker Compose builds and runs the API and web interface:
+
+```bash
+docker compose up --build
+```
+
+The web interface is available at <http://localhost:8080>, the API at <http://localhost:3000>, and API health at `GET /health`. Analysis uses `POST /v1/preflight`.
+
+Compose has local defaults. To customize them, copy the tracked example and edit the untracked `.env` file:
 
 ```bash
 cp .env.example .env
 docker compose up --build
 ```
 
-The tracked `.env.example` contains the same local defaults consumed by `compose.yaml`. Copy it only when you want to customize those values; Docker Compose also runs with its built-in defaults when `.env` is absent.
+| Variable          | Purpose                                         |
+| ----------------- | ----------------------------------------------- |
+| `DEVNET_RPC_URL`  | API devnet RPC endpoint                         |
+| `MAINNET_RPC_URL` | API mainnet-beta RPC endpoint                   |
+| `CORS_ORIGINS`    | Comma-separated web origins accepted by the API |
+| `PORT`            | API port, default `3000`                        |
+| `SOLANA_RPC_URL`  | Optional direct RPC endpoint for the CLI        |
 
-The web demo is served at <http://localhost:8080>, the API at <http://localhost:3000>, and health is available at `GET /health`. The analysis endpoint is `POST /v1/preflight`.
-
-The API validates requests, limits body size and request rate, caches identical analyses briefly, uses an RPC allowlist configured by environment, and never accepts arbitrary RPC URLs from web clients.
-
-## Development
+## Local development
 
 ```bash
 npm ci
+npx playwright install chromium
 npm run lint
 npm run typecheck
 npm test
 npm run build
+npm run test:e2e
 npm audit --audit-level=high
+docker compose build
 ```
 
-Live RPC tests belong under `tests/live` and are intentionally separate from deterministic unit tests. They must remain read-only.
+Run the locally built CLI:
+
+```bash
+node packages/cli/dist/bin.js inspect <MINT_ADDRESS>
+```
+
+Live RPC tests are opt-in and remain read-only:
 
 ```bash
 RUN_LIVE_TESTS=1 \
@@ -115,42 +199,10 @@ LIVE_DEVNET_TOKEN_2022_MINT=<TOKEN_2022_MINT> \
 npm test -- tests/live
 ```
 
-### Environment variables
-
-| Variable          | Purpose                                        |
-| ----------------- | ---------------------------------------------- |
-| `DEVNET_RPC_URL`  | API's allowed devnet RPC endpoint              |
-| `MAINNET_RPC_URL` | API's allowed mainnet-beta RPC endpoint        |
-| `CORS_ORIGINS`    | Comma-separated web origins allowed by the API |
-| `PORT`            | API listen port, default `3000`                |
-| `SOLANA_RPC_URL`  | Optional CLI RPC endpoint                      |
-
-## Architecture
-
-```text
-CLI ───────────────┐
-                   v
-Web -> API -> Solana adapter -> RPC
-                   |
-                   v
-             Core rule engine -> versioned report
-```
-
-`packages/core` contains RPC-independent rules and report types. `packages/solana` owns Kit RPC and official Token-2022 decoding. The CLI and API call the same analyzer; the web consumes the API report without duplicating rules.
-
-## Limitations
-
-- No transaction simulation is performed.
-- Transfer Hook configuration is detected, but arbitrary hook business logic is not interpreted.
-- Confidential transfer flows are detected but unsupported.
-- Interest-bearing and scaled UI conversions are identified; this version does not calculate their display conversion.
-- Public RPC endpoints can be rate limited. Use a provider endpoint for production.
-- A `READY` result means no blocker was found by supported checks, not that a transfer is guaranteed.
-
 ## Contributing
 
-Keep changes focused, add a failing behavior test before implementation, and run the full verification sequence above. Never add wallet keys, seed phrases, signing, transaction sending, or executable handling of on-chain metadata.
+Keep changes focused, add behavior tests for fixes and features, and run the full local verification sequence before opening a pull request. Never commit wallet keys, seed phrases, npm tokens, signing logic, or executable handling of untrusted on-chain metadata.
 
 ## License
 
-[MIT](LICENSE)
+Token-2022 Preflight is available under the [MIT License](LICENSE).
