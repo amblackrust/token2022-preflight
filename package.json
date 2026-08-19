@@ -1,0 +1,25 @@
+{
+  "name": "token2022-preflight",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "workspaces": ["packages/*", "apps/*"],
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc -b --pretty false",
+    "build": "npm run build --workspaces --if-present",
+    "lint": "eslint .",
+    "format:check": "prettier --check ."
+  },
+  "engines": { "node": ">=24.0.0" },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@types/node": "24.10.13",
+    "eslint": "10.0.0",
+    "prettier": "3.8.2",
+    "tsup": "8.5.1",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.56.1",
+    "vitest": "4.1.11"
+  }
+}
