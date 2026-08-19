@@ -9,6 +9,7 @@ const BASE_ANALYSIS: NormalizedAnalysis = {
   cluster: "devnet",
   mint: {
     address: "Mint111111111111111111111111111111111111111",
+    isInitialized: true,
     decimals: 6,
     supplyRaw: 1_000_000n,
     mintAuthority: null,
@@ -42,6 +43,28 @@ describe("analyzeNormalizedToken", () => {
         ],
       }),
     ]);
+  });
+
+  it("blocks an uninitialized mint with on-chain evidence", () => {
+    const report = analyzeNormalizedToken({
+      ...BASE_ANALYSIS,
+      mint: { ...BASE_ANALYSIS.mint, isInitialized: false },
+    });
+
+    expect(report.overallStatus).toBe("BLOCKED");
+    expect(report.mint.isInitialized).toBe(false);
+    expect(report.findings[0]).toMatchObject({
+      id: "mint-uninitialized",
+      status: "BLOCKED",
+      evidence: [
+        {
+          account: BASE_ANALYSIS.mint.address,
+          accountKind: "mint",
+          field: "isInitialized",
+          value: false,
+        },
+      ],
+    });
   });
 
   it("reports an unknown extension and does not return READY", () => {

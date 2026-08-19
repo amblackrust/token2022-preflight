@@ -52,54 +52,65 @@ function PreflightPage(): React.JSX.Element {
   }
 
   return (
-    <main className="min-h-screen bg-slate-950 px-4 py-10 text-slate-100">
-      <div className="mx-auto max-w-5xl">
-        <header className="mb-8 border-b border-slate-800 pb-6">
-          <p className="mb-2 font-mono text-sm text-cyan-400">
-            READ-ONLY SOLANA DIAGNOSTICS
-          </p>
-          <h1 className="text-4xl font-semibold tracking-tight">
-            Token-2022 Preflight
-          </h1>
-          <p className="mt-3 max-w-2xl text-slate-400">
-            Explain what a token changes in your transfer flow before you
-            integrate it.
-          </p>
+    <main className="app-shell min-h-screen px-4 py-6 sm:px-6 lg:py-10">
+      <div className="mx-auto max-w-6xl">
+        <nav className="console-nav" aria-label="Product">
+          <span className="brand-mark">T22</span>
+          <span className="brand-name">TOKEN-2022 PREFLIGHT</span>
+          <span className="nav-state">● RPC / READ ONLY</span>
+        </nav>
+
+        <header className="console-hero">
+          <div className="window-bar" aria-hidden="true">
+            <span className="window-dot window-dot-red" />
+            <span className="window-dot window-dot-amber" />
+            <span className="window-dot window-dot-green" />
+            <span className="window-path">~/token22/preflight</span>
+          </div>
+          <div className="hero-copy">
+            <p className="eyebrow">TRANSFER COMPATIBILITY INSPECTOR / v0.1.0</p>
+            <h1>Know what the mint changes before your transfer ships.</h1>
+            <p className="hero-description">
+              Paste account addresses into a familiar web form. Get a
+              deterministic report built from live Solana account data — no
+              signing, no transaction submission.
+            </p>
+          </div>
         </header>
 
-        <section className="grid gap-8 lg:grid-cols-[minmax(0,2fr)_minmax(18rem,1fr)]">
-          <form
-            onSubmit={submit}
-            className="rounded-xl border border-slate-800 bg-slate-900/60 p-6"
-          >
-            <div className="mb-6 flex gap-2" aria-label="Analysis mode">
+        <section className="workspace-grid">
+          <form onSubmit={submit} className="console-panel input-panel">
+            <div className="panel-label">/ INPUT PARAMETERS</div>
+            <div className="mode-switch" aria-label="Analysis mode">
               {(["basic", "transfer"] as const).map((value) => (
                 <button
                   key={value}
                   type="button"
+                  aria-label={value === "basic" ? "Basic" : "Transfer"}
+                  aria-pressed={mode === value}
                   onClick={() => setMode(value)}
-                  className={`rounded-md px-4 py-2 font-medium ${mode === value ? "bg-cyan-400 text-slate-950" : "bg-slate-800 text-slate-300"}`}
+                  className={`mode-button ${mode === value ? "mode-button-active" : ""}`}
                 >
-                  {value === "basic" ? "Basic" : "Transfer"}
+                  {value === "basic" ? "MINT ONLY" : "TRANSFER PATH"}
                 </button>
               ))}
             </div>
-            <div className="grid gap-5 sm:grid-cols-2">
+            <div className="field-grid">
               <Field
                 label="Mint address"
                 value={form.mint}
                 required
                 onChange={(mint) => setForm({ ...form, mint })}
               />
-              <label className="grid gap-2 text-sm font-medium">
-                Cluster
+              <label className="field-label">
+                <span>Cluster</span>
                 <select
                   aria-label="Cluster"
                   value={form.cluster}
                   onChange={(event) =>
                     setForm({ ...form, cluster: event.target.value as Cluster })
                   }
-                  className="rounded-md border border-slate-700 bg-slate-950 px-3 py-3"
+                  className="console-control"
                 >
                   <option value="mainnet-beta">mainnet-beta</option>
                   <option value="devnet">devnet</option>
@@ -133,24 +144,28 @@ function PreflightPage(): React.JSX.Element {
             </div>
             <button
               type="submit"
+              aria-label="Run preflight"
               disabled={mutation.isPending}
-              className="mt-6 rounded-md bg-cyan-400 px-5 py-3 font-semibold text-slate-950 disabled:opacity-60"
+              className="run-button"
             >
-              {mutation.isPending ? "Running…" : "Run preflight"}
+              {mutation.isPending ? "[ PROCESSING ]" : "> RUN PREFLIGHT"}
             </button>
             {mutation.isError && (
-              <p
-                role="alert"
-                className="mt-4 rounded-md border border-red-700 bg-red-950 p-3 text-red-200"
-              >
+              <p role="alert" className="error-callout">
                 {mutation.error.message}
               </p>
             )}
           </form>
 
-          <aside className="rounded-xl border border-slate-800 bg-slate-900/60 p-5">
-            <h2 className="font-semibold">Equivalent CLI command</h2>
-            <code className="mt-3 block break-all rounded-md bg-slate-950 p-3 text-sm text-cyan-300">
+          <aside className="console-panel command-panel">
+            <div className="panel-label">/ CLI EQUIVALENT</div>
+            <h2>Same analysis, scriptable.</h2>
+            <p className="panel-description">
+              The website stays form-first. Copy this only when you need the
+              identical check in a terminal or CI job.
+            </p>
+            <code className="command-preview">
+              <span aria-hidden="true">$ </span>
               {cliCommand}
             </code>
             <CopyButton value={cliCommand} label="Copy CLI command" />
@@ -175,14 +190,14 @@ function Field({
   onChange(value: string): void;
 }): React.JSX.Element {
   return (
-    <label className="grid gap-2 text-sm font-medium">
-      {label}
+    <label className="field-label">
+      <span>{label}</span>
       <input
         aria-label={label}
         value={value}
         required={required}
         onChange={(event) => onChange(event.target.value)}
-        className="rounded-md border border-slate-700 bg-slate-950 px-3 py-3 font-mono text-sm"
+        className="console-control"
       />
     </label>
   );
@@ -191,16 +206,18 @@ function Field({
 function Report({ report }: { report: PreflightReport }): React.JSX.Element {
   const json = JSON.stringify(report, null, 2);
   return (
-    <section className="mt-8 space-y-6" aria-live="polite">
-      <div className="rounded-xl border border-slate-800 bg-slate-900 p-6">
-        <p className="text-sm text-slate-400">Overall status</p>
-        <h2
-          className={`mt-1 text-3xl font-semibold ${statusClass(report.overallStatus)}`}
-        >
+    <section className="report-stack" aria-live="polite">
+      <div className="console-panel status-panel">
+        <div>
+          <p className="panel-label">/ PREFLIGHT RESULT</p>
+          <h2>Transfer readiness</h2>
+        </div>
+        <span className={`status-badge ${statusClass(report.overallStatus)}`}>
+          {statusSymbol(report.overallStatus)}{" "}
           {report.overallStatus.replace("_", " ")}
-        </h2>
+        </span>
         {report.transfer && (
-          <dl className="mt-5 grid grid-cols-2 gap-4 font-mono text-sm sm:grid-cols-4">
+          <dl className="metric-grid">
             <Metric label="Amount (UI)" value={report.input.amountUi} />
             <Metric label="Amount (raw)" value={report.transfer.amountRaw} />
             <Metric label="Fee" value={report.transfer.expectedFeeRaw} />
@@ -211,36 +228,49 @@ function Report({ report }: { report: PreflightReport }): React.JSX.Element {
           </dl>
         )}
       </div>
-      <div className="grid gap-4">
-        <h2 className="text-xl font-semibold">Findings</h2>
+      <div className="findings-section">
+        <div className="section-heading">
+          <p className="panel-label">/ DIAGNOSTIC TAPE</p>
+          <h2>Findings</h2>
+          <span>{String(report.findings.length).padStart(2, "0")} records</span>
+        </div>
         {report.findings.length === 0 && (
-          <p className="rounded-xl border border-slate-800 bg-slate-900 p-5">
+          <p className="empty-result">
+            <span className="status-badge status-ready">✓ READY</span>
             No blockers found by supported checks.
           </p>
         )}
         {report.findings.map((finding) => (
-          <article
-            key={finding.id}
-            className="rounded-xl border border-slate-800 bg-slate-900 p-5"
-          >
-            <p
-              className={`text-sm font-semibold ${statusClass(finding.status)}`}
-            >
-              {finding.status.replace("_", " ")}
-            </p>
-            <h3 className="mt-1 text-lg font-semibold">{finding.title}</h3>
-            <p className="mt-2 text-slate-400">{finding.summary}</p>
-            <details className="mt-4">
-              <summary className="cursor-pointer font-medium">Evidence</summary>
-              <ul className="mt-3 space-y-2">
+          <article key={finding.id} className="finding-row">
+            <div className="finding-line">
+              <span className={`status-badge ${statusClass(finding.status)}`}>
+                {statusSymbol(finding.status)}{" "}
+                {finding.status.replace("_", " ")}
+              </span>
+              <div>
+                <h3>{finding.title}</h3>
+                <p>{finding.summary}</p>
+              </div>
+              <span className="finding-id">{finding.id}</span>
+            </div>
+            {finding.requiredActions.length > 0 && (
+              <div className="action-block">
+                <h4>Required actions</h4>
+                <ul>
+                  {finding.requiredActions.map((action) => (
+                    <li key={action}>{action}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            <details className="evidence-block">
+              <summary>Evidence</summary>
+              <ul>
                 {finding.evidence.map((item, index) => (
-                  <li
-                    key={`${item.field}-${index}`}
-                    className="rounded bg-slate-950 p-3 font-mono text-xs"
-                  >
-                    <span className="block text-cyan-300">{item.field}</span>
-                    <span>{String(item.value)}</span>
-                    <span className="block text-slate-500">{item.account}</span>
+                  <li key={`${item.field}-${index}`}>
+                    <span>{item.field}</span>
+                    <strong>{String(item.value)}</strong>
+                    <small>{item.account}</small>
                   </li>
                 ))}
               </ul>
@@ -248,22 +278,24 @@ function Report({ report }: { report: PreflightReport }): React.JSX.Element {
           </article>
         ))}
       </div>
-      <div className="rounded-xl border border-slate-800 bg-slate-900 p-5">
-        <h2 className="font-semibold">Limitations</h2>
-        <ul className="mt-3 list-disc space-y-2 pl-5 text-slate-400">
+      <div className="console-panel limitation-panel">
+        <div className="panel-label">/ KNOWN LIMITS</div>
+        <h2>Limitations</h2>
+        <ul>
           {report.limitations.map((value) => (
             <li key={value}>{value}</li>
           ))}
         </ul>
       </div>
-      <div className="rounded-xl border border-slate-800 bg-slate-900 p-5">
-        <div className="flex items-center justify-between">
-          <h2 className="font-semibold">JSON report</h2>
+      <div className="console-panel json-panel">
+        <div className="json-heading">
+          <div>
+            <p className="panel-label">/ MACHINE OUTPUT</p>
+            <h2>JSON report</h2>
+          </div>
           <CopyButton value={json} label="Copy JSON" />
         </div>
-        <pre className="mt-3 max-h-96 overflow-auto rounded bg-slate-950 p-4 text-xs text-slate-300">
-          {json}
-        </pre>
+        <pre>{json}</pre>
       </div>
     </section>
   );
@@ -277,8 +309,8 @@ function Metric({
   value: string | undefined;
 }): React.JSX.Element {
   return (
-    <div>
-      <dt className="text-slate-500">{label}</dt>
+    <div className="metric">
+      <dt>{label}</dt>
       <dd>{value ?? "unknown"}</dd>
     </div>
   );
@@ -295,7 +327,7 @@ function CopyButton({
     <button
       type="button"
       onClick={() => void navigator.clipboard?.writeText(value)}
-      className="mt-3 text-sm text-cyan-400"
+      className="copy-button"
     >
       {label}
     </button>
@@ -366,10 +398,20 @@ function buildCliCommand(form: FormState, mode: Mode): string {
 
 function statusClass(status: FindingStatus): string {
   return status === "BLOCKED"
-    ? "text-red-400"
+    ? "status-blocked"
     : status === "ACTION_REQUIRED" || status === "WARNING"
-      ? "text-amber-300"
+      ? "status-warning"
       : status === "UNKNOWN"
-        ? "text-fuchsia-300"
-        : "text-emerald-300";
+        ? "status-unknown"
+        : "status-ready";
+}
+
+function statusSymbol(status: FindingStatus): string {
+  return status === "BLOCKED"
+    ? "×"
+    : status === "ACTION_REQUIRED" || status === "WARNING"
+      ? "▲"
+      : status === "UNKNOWN"
+        ? "?"
+        : "✓";
 }

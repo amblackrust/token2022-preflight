@@ -400,6 +400,7 @@ export function decodeMintData(
     const mint = getMintDecoder().decode(data);
     return {
       address,
+      isInitialized: mint.isInitialized,
       decimals: mint.decimals,
       supplyRaw: mint.supply,
       mintAuthority: optionAddress(mint.mintAuthority),

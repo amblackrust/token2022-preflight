@@ -153,6 +153,8 @@ function httpStatus(
   switch (code) {
     case "INVALID_ADDRESS":
     case "INVALID_AMOUNT":
+    case "UNSUPPORTED_OWNER":
+    case "TOKEN_ACCOUNT_DECODE_FAILED":
     case "MINT_MISMATCH":
       return 400;
     case "ACCOUNT_NOT_FOUND":

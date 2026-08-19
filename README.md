@@ -88,6 +88,8 @@ cp .env.example .env
 docker compose up --build
 ```
 
+The tracked `.env.example` contains the same local defaults consumed by `compose.yaml`. Copy it only when you want to customize those values; Docker Compose also runs with its built-in defaults when `.env` is absent.
+
 The web demo is served at <http://localhost:8080>, the API at <http://localhost:3000>, and health is available at `GET /health`. The analysis endpoint is `POST /v1/preflight`.
 
 The API validates requests, limits body size and request rate, caches identical analyses briefly, uses an RPC allowlist configured by environment, and never accepts arbitrary RPC URLs from web clients.

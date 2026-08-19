@@ -107,6 +107,7 @@ describe("decodeMintData", () => {
 
     expect(decodeMintData(MINT, data)).toEqual({
       address: MINT,
+      isInitialized: true,
       decimals: 2,
       supplyRaw: 50_000n,
       mintAuthority: null,
@@ -117,6 +118,19 @@ describe("decodeMintData", () => {
         { kind: "PausableConfig", authority: AUTHORITY, paused: false },
       ],
     });
+  });
+
+  it("preserves an uninitialized mint state", () => {
+    const data = getMintEncoder().encode({
+      mintAuthority: none(),
+      supply: 0n,
+      decimals: 2,
+      isInitialized: false,
+      freezeAuthority: none(),
+      extensions: none(),
+    });
+
+    expect(decodeMintData(MINT, data).isInitialized).toBe(false);
   });
 
   it("maps malformed mint bytes to a safe domain error", () => {

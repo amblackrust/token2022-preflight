@@ -69,6 +69,7 @@ export interface NormalizedTokenAccount {
 
 export interface NormalizedMint {
   address: string;
+  isInitialized: boolean;
   decimals: number;
   supplyRaw: bigint;
   mintAuthority: string | null;
@@ -100,6 +101,7 @@ export interface PreflightReport {
   tokenProgram: TokenProgram;
   mint: {
     address: string;
+    isInitialized?: boolean;
     decimals?: number;
     supplyRaw?: string;
     mintAuthority?: string | null;
@@ -184,6 +186,7 @@ export function analyzeNormalizedToken(
     tokenProgram: analysis.tokenProgram,
     mint: {
       address: analysis.mint.address,
+      isInitialized: analysis.mint.isInitialized,
       decimals: analysis.mint.decimals,
       supplyRaw: analysis.mint.supplyRaw.toString(),
       mintAuthority: analysis.mint.mintAuthority,
@@ -208,6 +211,19 @@ function buildMintFindings(analysis: NormalizedAnalysis): Finding[] {
   const findings = analysis.mint.extensions.flatMap((extension) =>
     mintExtensionFindings(analysis, extension),
   );
+  if (!analysis.mint.isInitialized) {
+    findings.push(
+      makeFinding(
+        "mint-uninitialized",
+        "BLOCKED",
+        "mint",
+        "Mint is uninitialized",
+        "The mint account cannot be used for token transfers until it is initialized.",
+        [],
+        mintEvidence(analysis.mint.address, "isInitialized", false),
+      ),
+    );
+  }
   if (analysis.mint.freezeAuthority !== null) {
     findings.push(
       makeFinding(

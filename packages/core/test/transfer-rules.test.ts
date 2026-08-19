@@ -15,6 +15,7 @@ function analysis(overrides: Record<string, unknown> = {}): NormalizedAnalysis {
     tokenProgram: "token-2022",
     mint: {
       address: MINT,
+      isInitialized: true,
       decimals: 2,
       supplyRaw: 1_000_000n,
       mintAuthority: null,

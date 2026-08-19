@@ -98,6 +98,38 @@ describe("App", () => {
     );
   });
 
+  it("shows required actions only for findings that provide them", async () => {
+    const value = {
+      ...report,
+      findings: [
+        {
+          ...report.findings[0],
+          requiredActions: ["Use official conversion helpers."],
+        },
+        {
+          ...report.findings[0],
+          id: "informational-metadata",
+          title: "Metadata detected",
+          requiredActions: [],
+        },
+      ],
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(JSON.stringify(value), { status: 200 })),
+    );
+    render(<App />);
+    fireEvent.change(screen.getByLabelText("Mint address"), {
+      target: { value: MINT },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Run preflight" }));
+
+    expect(
+      await screen.findByText("Use official conversion helpers."),
+    ).toBeVisible();
+    expect(screen.getAllByText("Required actions")).toHaveLength(1);
+  });
+
   it("shows an accessible error when the API is unavailable", async () => {
     vi.stubGlobal(
       "fetch",

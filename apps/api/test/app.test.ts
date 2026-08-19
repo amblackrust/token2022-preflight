@@ -132,6 +132,28 @@ describe("API", () => {
     });
   });
 
+  it.each([
+    ["UNSUPPORTED_OWNER", "Token account owner does not match the mint"],
+    ["TOKEN_ACCOUNT_DECODE_FAILED", "Unable to decode the source account"],
+    ["MINT_MISMATCH", "Source account belongs to another mint"],
+  ] as const)(
+    "maps %s to HTTP 400 without changing its payload",
+    async (code, message) => {
+      const response = await app({
+        analyzer: async () => {
+          throw new PreflightError(code, message);
+        },
+      }).inject({
+        method: "POST",
+        url: "/v1/preflight",
+        payload: { cluster: "devnet", mint: MINT },
+      });
+
+      expect(response.statusCode).toBe(400);
+      expect(response.json()).toEqual({ code, message });
+    },
+  );
+
   it("retries one transient RPC failure", async () => {
     const analyzer = vi
       .fn()
