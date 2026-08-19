@@ -4,6 +4,7 @@
     { "path": "packages/core" },
     { "path": "packages/solana" },
     { "path": "packages/cli" },
-    { "path": "apps/api" }
+    { "path": "apps/api" },
+    { "path": "apps/web" }
   ]
 }
