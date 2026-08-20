@@ -1,6 +1,6 @@
 # Token-2022 Preflight
 
-Token-2022 Preflight is a read-only diagnostic CLI that explains how a Solana token mint and optional token accounts affect a transfer flow.
+Token-2022 Preflight is a deterministic, read-only compatibility checker for developers and AI coding agents integrating Solana tokens.
 
 Token-2022 extensions can change transfer eligibility, required instructions, account lists, fees, and displayed amounts. Preflight reads the current on-chain account state and turns those details into actionable findings before an integration builds a transfer.
 
@@ -27,6 +27,26 @@ The default cluster is `mainnet-beta`. Use `--cluster devnet` when inspecting a 
 npm install --global token2022-preflight
 token22 inspect <MINT_ADDRESS>
 ```
+
+## For developers, AI agents, and CI
+
+People can use the regular terminal report, while AI coding agents and CI can use `--json` for stable statuses, required actions, evidence, limitations, and exit codes.
+
+```bash
+token22 inspect CKfatsPMUf8SkiURsDXs7eK6GWb4Jsd6UDbs7twMCWxo \
+  --cluster mainnet-beta \
+  --amount 10 \
+  --json
+```
+
+An AI agent could reproduce the analysis by implementing its own RPC reads, Token-2022 extension decoding, fee calculations, and result rules. Preflight packages that work into one tested command: it evaluates current on-chain state with fixed rules rather than relying on free-form model reasoning.
+
+A separate Solana Skill can explain to an agent when this check is useful; Preflight performs the check itself. The CLI runs independently and does not depend on the web app, API, or Docker. This repository does not currently provide an MCP integration, AI Skill, or GitHub Action.
+
+- `READY` or `WARNING` — continue while accounting for the findings.
+- `ACTION_REQUIRED` — implement the required actions first.
+- `BLOCKED` — stop the current transfer flow.
+- `UNKNOWN` — make no assumptions; request more data or manual review.
 
 ## Usage
 
